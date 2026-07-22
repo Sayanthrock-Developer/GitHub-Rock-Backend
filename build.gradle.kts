@@ -48,8 +48,8 @@ dependencies {
     implementation("io.lettuce:lettuce-core:6.5.5.RELEASE")
 
     implementation("ch.qos.logback:logback-classic:1.5.18")
-    implementation("io.sentry:sentry:8.13.2")
-    implementation("io.sentry:sentry-logback:8.13.2")
+    implementation("io.sentry:sentry:8.50.0")
+    implementation("io.sentry:sentry-logback:8.50.0")
 
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
     testImplementation(kotlin("test-junit5"))
