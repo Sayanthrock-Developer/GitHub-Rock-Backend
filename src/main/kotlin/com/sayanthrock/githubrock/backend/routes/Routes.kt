@@ -81,7 +81,7 @@ fun Application.configureRoutes() {
                     return@post
                 }
 
-                val payload = call.receiveChannel().readRemaining(limit = 1_048_577L).readByteArray()
+                val payload = call.receiveChannel().readRemaining(max = 1_048_577L).readByteArray()
                 if (payload.size > 1_048_576) {
                     call.respond(
                         HttpStatusCode.PayloadTooLarge,
