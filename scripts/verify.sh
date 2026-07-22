@@ -16,12 +16,26 @@ fail() {
 command -v java >/dev/null 2>&1 || fail "Java is required. Install JDK 21 or newer."
 command -v gradle >/dev/null 2>&1 || fail "Gradle is required. Install Gradle 9.6 or use the CI workflow."
 command -v docker >/dev/null 2>&1 || fail "Docker is required for Compose validation and the container build."
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required."
 
 gradle_version="$(gradle --version | awk '/^Gradle / { print $2; exit }')"
 java_version="$(java -version 2>&1 | head -n 1)"
 
 printf 'Gradle: %s\n' "${gradle_version:-unknown}"
 printf 'Java:   %s\n' "$java_version"
+
+created_env=0
+cleanup() {
+  if [[ "$created_env" == "1" ]]; then
+    rm -f .env
+  fi
+}
+trap cleanup EXIT
+
+if [[ ! -f .env ]]; then
+  cp .env.example .env
+  created_env=1
+fi
 
 log "Checking Shell syntax"
 for script in scripts/*.sh; do
