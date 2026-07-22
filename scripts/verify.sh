@@ -14,7 +14,7 @@ fail() {
 }
 
 command -v java >/dev/null 2>&1 || fail "Java is required. Install JDK 21 or newer."
-command -v gradle >/dev/null 2>&1 || fail "Gradle is required. Install Gradle 9.6 or use the CI workflow."
+command -v gradle >/dev/null 2>&1 || fail "Gradle is required. Install Gradle 8.13 or newer, or use the CI workflow."
 command -v docker >/dev/null 2>&1 || fail "Docker is required for Compose validation and the container build."
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required."
 
