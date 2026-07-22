@@ -14,6 +14,7 @@ fail() {
 }
 
 command -v docker >/dev/null 2>&1 || fail "Docker is required."
+command -v curl >/dev/null 2>&1 || fail "curl is required for the health check."
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required."
 
 if [[ ! -f .env ]]; then
@@ -29,11 +30,11 @@ log "Starting GitHub Rock Backend"
 docker compose up --build -d
 
 log "Waiting for the public health endpoint"
-health_url="${HEALTH_URL:-http://localhost:8080/v1/health}"
+health_url="${HEALTH_URL:-http://localhost/v1/health}"
 max_attempts="${HEALTH_ATTEMPTS:-30}"
 
 for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-  if command -v curl >/dev/null 2>&1 && curl --fail --silent --show-error "$health_url" >/dev/null; then
+  if curl --fail --silent --show-error "$health_url" >/dev/null; then
     printf 'Backend is reachable at %s\n' "$health_url"
     printf 'Use `docker compose logs -f app` to follow application logs.\n'
     exit 0
