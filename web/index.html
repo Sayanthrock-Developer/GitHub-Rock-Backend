@@ -9,7 +9,7 @@
   <style>
     :root {
       --background: #080b12;
-      --surface: rgba(19, 24, 37, 0.82);
+      --surface: rgba(19, 24, 37, 0.84);
       --surface-strong: #151b29;
       --border: rgba(255, 255, 255, 0.10);
       --text: #f7f8fc;
@@ -17,13 +17,10 @@
       --accent: #8ea7ff;
       --accent-soft: rgba(142, 167, 255, 0.16);
       --success: #75d6a3;
-      --radius: 22px;
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       min-height: 100vh;
@@ -37,9 +34,7 @@
       line-height: 1.6;
     }
 
-    a {
-      color: inherit;
-    }
+    a { color: inherit; }
 
     .shell {
       width: min(1120px, calc(100% - 32px));
@@ -70,10 +65,10 @@
       align-items: center;
       gap: 9px;
       padding: 7px 12px;
+      border: 1px solid rgba(117, 214, 163, 0.24);
       border-radius: 999px;
       color: var(--success);
       background: rgba(117, 214, 163, 0.10);
-      border: 1px solid rgba(117, 214, 163, 0.24);
       font-size: 0.82rem;
       font-weight: 750;
       letter-spacing: 0.04em;
@@ -104,12 +99,15 @@
       font-size: clamp(1rem, 2vw, 1.18rem);
     }
 
-    .actions {
+    .actions,
+    .meta {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 28px;
     }
+
+    .actions { margin-top: 28px; }
+    .meta { margin-top: 18px; gap: 10px; }
 
     .button {
       display: inline-flex;
@@ -136,11 +134,9 @@
       aspect-ratio: 1;
       margin-left: auto;
       place-items: center;
-      border-radius: 34px;
-      background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
-        var(--surface-strong);
       border: 1px solid var(--border);
+      border-radius: 34px;
+      background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.03)), var(--surface-strong);
       font-size: clamp(4rem, 11vw, 7rem);
       font-weight: 900;
       letter-spacing: -0.08em;
@@ -157,46 +153,31 @@
     .card {
       min-height: 210px;
       padding: 24px;
-      border-radius: var(--radius);
+      border-radius: 22px;
     }
 
-    .card h2 {
-      margin: 0 0 8px;
-      font-size: 1.12rem;
-      letter-spacing: -0.02em;
-    }
-
-    .card p {
-      margin: 0;
-      color: var(--muted);
-    }
+    .card h2 { margin: 0 0 8px; font-size: 1.12rem; letter-spacing: -0.02em; }
+    .card p { margin: 0; color: var(--muted); }
 
     .endpoint {
       display: block;
       margin-top: 18px;
       padding: 13px 14px;
       overflow-wrap: anywhere;
+      border: 1px solid var(--border);
       border-radius: 13px;
       color: #dce4ff;
       background: #0c111d;
-      border: 1px solid var(--border);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
       font-size: 0.88rem;
     }
 
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
     .chip {
       padding: 6px 10px;
+      border: 1px solid var(--border);
       border-radius: 999px;
       color: var(--muted);
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
       font-size: 0.8rem;
       font-weight: 700;
     }
@@ -212,30 +193,14 @@
     }
 
     @media (max-width: 820px) {
-      .hero {
-        grid-template-columns: 1fr;
-      }
-
-      .mark {
-        width: 150px;
-        margin: 0;
-        border-radius: 26px;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
+      .hero { grid-template-columns: 1fr; }
+      .mark { width: 150px; margin: 0; border-radius: 26px; }
+      .grid { grid-template-columns: 1fr; }
     }
 
     @media (prefers-reduced-motion: no-preference) {
-      .button {
-        transition: transform 160ms ease, filter 160ms ease;
-      }
-
-      .button:hover {
-        transform: translateY(-2px);
-        filter: brightness(1.07);
-      }
+      .button { transition: transform 160ms ease, filter 160ms ease; }
+      .button:hover { transform: translateY(-2px); filter: brightness(1.07); }
     }
   </style>
 </head>
@@ -250,7 +215,7 @@
           GitHub Device Flow, signed webhooks, and the next generation of GitHub Rock services.
         </p>
         <div class="actions">
-          <a class="button" href="../docs/API.md">Read API reference</a>
+          <a class="button" href="https://github.com/Sayanthrock-Developer/GitHub-Rock-Backend/blob/main/docs/API.md">Read API reference</a>
           <a class="button secondary" href="https://github.com/Sayanthrock-Developer/GitHub-Rock-Backend">Open repository</a>
         </div>
       </div>
@@ -262,73 +227,46 @@
         <h2>Dependency health</h2>
         <p>Checks the application, PostgreSQL, Redis, and Meilisearch without exposing credentials.</p>
         <code class="endpoint">GET /v1/health</code>
-        <div class="meta">
-          <span class="chip">Public</span>
-          <span class="chip">JSON</span>
-          <span class="chip">No secrets</span>
-        </div>
+        <div class="meta"><span class="chip">Public</span><span class="chip">JSON</span><span class="chip">No secrets</span></div>
       </article>
 
       <article class="card">
         <h2>Runtime configuration</h2>
         <p>Returns supported app versions, maintenance state, and safely exposed feature availability.</p>
         <code class="endpoint">GET /v1/config</code>
-        <div class="meta">
-          <span class="chip">Public</span>
-          <span class="chip">Cacheable</span>
-          <span class="chip">Mobile-ready</span>
-        </div>
+        <div class="meta"><span class="chip">Public</span><span class="chip">Cacheable</span><span class="chip">Mobile-ready</span></div>
       </article>
 
       <article class="card">
         <h2>GitHub authentication</h2>
         <p>Starts and polls GitHub Device Flow without storing user access tokens in the backend database.</p>
         <code class="endpoint">POST /v1/auth/device/start</code>
-        <div class="meta">
-          <span class="chip">Rate limited</span>
-          <span class="chip">Stateless</span>
-          <span class="chip">Typed states</span>
-        </div>
+        <div class="meta"><span class="chip">GitHub OAuth</span><span class="chip">Stateless</span><span class="chip">Typed states</span></div>
       </article>
 
       <article class="card">
         <h2>Signed webhooks</h2>
         <p>Accepts GitHub webhook events only after HMAC-SHA256 validation and delivery replay checks.</p>
         <code class="endpoint">POST /v1/github/webhooks</code>
-        <div class="meta">
-          <span class="chip">1 MiB limit</span>
-          <span class="chip">Idempotent</span>
-          <span class="chip">HMAC-SHA256</span>
-        </div>
+        <div class="meta"><span class="chip">1 MiB limit</span><span class="chip">Idempotent</span><span class="chip">HMAC-SHA256</span></div>
       </article>
 
       <article class="card">
         <h2>Local verification</h2>
         <p>Run the same checks used by CI before opening a pull request or deploying a container.</p>
         <code class="endpoint">bash scripts/verify.sh</code>
-        <div class="meta">
-          <span class="chip">Gradle</span>
-          <span class="chip">Docker Compose</span>
-          <span class="chip">Shell syntax</span>
-        </div>
+        <div class="meta"><span class="chip">Gradle</span><span class="chip">Docker Compose</span><span class="chip">Shell syntax</span></div>
       </article>
 
       <article class="card">
         <h2>Local stack</h2>
         <p>Creates a local environment file when needed and starts the complete private service stack.</p>
         <code class="endpoint">bash scripts/start-local.sh</code>
-        <div class="meta">
-          <span class="chip">Caddy</span>
-          <span class="chip">PostgreSQL</span>
-          <span class="chip">Redis + Meili</span>
-        </div>
+        <div class="meta"><span class="chip">Caddy</span><span class="chip">PostgreSQL</span><span class="chip">Redis + Meili</span></div>
       </article>
     </section>
 
-    <footer>
-      <span>GitHub Rock Backend</span>
-      <span>Licensed under Apache-2.0</span>
-    </footer>
+    <footer><span>GitHub Rock Backend</span><span>Licensed under Apache-2.0</span></footer>
   </main>
 </body>
 </html>
