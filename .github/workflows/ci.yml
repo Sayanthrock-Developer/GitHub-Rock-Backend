@@ -27,7 +27,8 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/*.sh
-          cp .env.example .env
+          test -s .env.example
+          [[ -f .env ]] || cp .env.example .env
           docker compose config --quiet
           test -s LICENSE
           test -s web/index.html
