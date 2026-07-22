@@ -24,14 +24,31 @@ jobs:
         with:
           gradle-version: "8.13"
       - name: Build and test
-        run: gradle --no-daemon clean test buildFatJar
+        id: gradle-build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon --console=plain clean test buildFatJar 2>&1 | tee gradle-build.log
+      - name: Upload Gradle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-log
+          path: gradle-build.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload server JAR
+        if: steps.gradle-build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: github-rock-backend
           path: build/libs/github-rock-backend.jar
           if-no-files-found: error
           retention-days: 14
+      - name: Enforce Gradle result
+        if: steps.gradle-build.outcome == 'failure'
+        run: exit 1
 
   docker:
     runs-on: ubuntu-latest
