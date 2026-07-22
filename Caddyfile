@@ -1,4 +1,4 @@
-{$PUBLIC_HOST:localhost} {
+{$CADDY_ADDRESS:http://localhost} {
     encode zstd gzip
     reverse_proxy app:8080
 
