@@ -47,7 +47,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql:11.8.2")
     implementation("io.lettuce:lettuce-core:6.5.5.RELEASE")
 
-    implementation("ch.qos.logback:logback-classic:1.5.18")
+    implementation("ch.qos.logback:logback-classic:1.5.38")
     implementation("io.sentry:sentry:8.13.2")
     implementation("io.sentry:sentry-logback:8.13.2")
 
