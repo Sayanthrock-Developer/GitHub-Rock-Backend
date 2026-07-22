@@ -1,6 +1,16 @@
-{$PUBLIC_HOST:localhost} {
+{$CADDY_ADDRESS:http://localhost} {
     encode zstd gzip
-    reverse_proxy app:8080
+
+    @api path /v1 /v1/*
+    handle @api {
+        reverse_proxy app:8080
+    }
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
 
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"

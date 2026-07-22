@@ -70,11 +70,14 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      CADDY_ADDRESS: ${CADDY_ADDRESS:-http://localhost}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
