@@ -64,7 +64,7 @@ Set `BUILD_CONTAINER=0` only when you intentionally need to skip the local conta
 BUILD_CONTAINER=0 bash scripts/verify.sh
 ```
 
-CI runs the same core checks with Gradle 9.6 and JDK 21.
+The direct CI build uses Gradle 8.13 with JDK 21. The Docker build independently verifies the Gradle 9.6 builder image.
 
 ## Production requirements
 
