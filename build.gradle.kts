@@ -43,8 +43,8 @@ dependencies {
 
     implementation("com.zaxxer:HikariCP:6.3.0")
     implementation("org.postgresql:postgresql:42.7.5")
-    implementation("org.flywaydb:flyway-core:11.8.2")
-    implementation("org.flywaydb:flyway-database-postgresql:11.8.2")
+    implementation("org.flywaydb:flyway-core:13.0.0")
+    implementation("org.flywaydb:flyway-database-postgresql:13.0.0")
     implementation("io.lettuce:lettuce-core:6.5.5.RELEASE")
 
     implementation("ch.qos.logback:logback-classic:1.5.18")
