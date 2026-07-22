@@ -41,7 +41,7 @@ dependencies {
     implementation("io.insert-koin:koin-ktor:$koinVersion")
     implementation("io.insert-koin:koin-logger-slf4j:$koinVersion")
 
-    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.5")
     implementation("org.flywaydb:flyway-core:13.0.0")
     implementation("org.flywaydb:flyway-database-postgresql:13.0.0")
