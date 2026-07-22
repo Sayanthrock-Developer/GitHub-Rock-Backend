@@ -1,4 +1,4 @@
-FROM gradle:8.13-jdk21 AS build
+FROM gradle:9.6-jdk21 AS build
 WORKDIR /workspace
 COPY . .
 RUN gradle --no-daemon clean buildFatJar
