@@ -9,6 +9,7 @@ import com.sayanthrock.githubrock.backend.storage.migrateDatabase
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
+import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.lettuce.core.RedisClient
