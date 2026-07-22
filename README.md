@@ -6,7 +6,7 @@ Production-oriented Kotlin/Ktor backend foundation for the **GitHub Rock** Andro
 
 ## Included in v0.1
 
-- Kotlin 2.1 and Ktor 3 on JDK 21
+- Kotlin 2.4, Ktor 3.5, and JDK 21
 - PostgreSQL with Flyway migrations and HikariCP
 - Redis connectivity
 - Meilisearch connectivity
@@ -18,6 +18,15 @@ Production-oriented Kotlin/Ktor backend foundation for the **GitHub Rock** Andro
 - Request logging without token bodies
 - Docker Compose stack with Caddy, PostgreSQL, Redis, and Meilisearch
 - Unit tests, Gradle CI, Docker CI, and Dependabot
+
+## Languages
+
+| Language group | Purpose |
+|---|---|
+| Kotlin | Ktor application, services, routes, security, storage, and tests |
+| HTML | Static backend status and API overview in [`web/index.html`](web/index.html) |
+| Shell | Local verification and Docker Compose startup scripts |
+| Other | Docker, YAML, SQL, Gradle Kotlin DSL, Caddy, and configuration files |
 
 ## API
 
@@ -36,10 +45,26 @@ See [`docs/API.md`](docs/API.md).
 ```bash
 cp .env.example .env
 # Fill GITHUB_OAUTH_CLIENT_ID and GITHUB_WEBHOOK_SECRET
-docker compose up --build
+bash scripts/start-local.sh
 ```
 
 Open `http://localhost:8080/v1/health` when using the default local Caddy host.
+
+## Verify before a pull request
+
+Run the unit tests, fat-JAR build, Compose validation, Shell syntax checks, and Docker image build:
+
+```bash
+bash scripts/verify.sh
+```
+
+Set `BUILD_CONTAINER=0` only when you intentionally need to skip the local container build:
+
+```bash
+BUILD_CONTAINER=0 bash scripts/verify.sh
+```
+
+CI runs the same core checks with Gradle 9.6 and JDK 21.
 
 ## Production requirements
 
@@ -58,4 +83,6 @@ Only Caddy exposes public ports. PostgreSQL, Redis, and Meilisearch remain on th
 
 ## License
 
-Apache-2.0. Add the complete license text before the first public binary release.
+Copyright 2026 Sayanthrock Developer.
+
+Licensed under the [Apache License 2.0](LICENSE).
