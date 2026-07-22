@@ -32,7 +32,7 @@ jobs:
           gradle --no-daemon --console=plain clean test buildFatJar 2>&1 | tee gradle-build.log
       - name: Upload Gradle diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gradle-build-log
           path: gradle-build.log
@@ -40,7 +40,7 @@ jobs:
           retention-days: 7
       - name: Upload server JAR
         if: steps.gradle-build.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: github-rock-backend
           path: build/libs/github-rock-backend.jar
