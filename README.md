@@ -48,7 +48,7 @@ cp .env.example .env
 bash scripts/start-local.sh
 ```
 
-Open `http://localhost:8080/v1/health` when using the default local Caddy host.
+Open `http://localhost/v1/health`. Caddy is the only public service; the Ktor application remains private on the Docker network.
 
 ## Verify before a pull request
 
@@ -68,9 +68,9 @@ CI runs the same core checks with Gradle 9.6 and JDK 21.
 
 ## Production requirements
 
-Set `APP_ENV=production`, use an HTTPS `PUBLIC_BASE_URL`, and replace every placeholder secret. The application refuses to start when production configuration is missing or unsafe.
+Set `APP_ENV=production`, use an HTTPS `PUBLIC_BASE_URL`, and replace every placeholder secret. Set `CADDY_ADDRESS` to the production hostname, such as `api.example.com`, so Caddy provisions HTTPS automatically. The application refuses to start when production configuration is missing or unsafe.
 
-Only Caddy exposes public ports. PostgreSQL, Redis, and Meilisearch remain on the private Docker network.
+Only Caddy exposes public ports. PostgreSQL, Redis, Meilisearch, and the Ktor application remain on the private Docker network.
 
 ## Next milestones
 
