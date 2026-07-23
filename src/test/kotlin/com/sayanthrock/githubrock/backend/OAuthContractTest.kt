@@ -30,16 +30,16 @@ class OAuthContractTest {
             accessToken = "access",
             tokenType = "bearer",
             scope = GITHUB_ROCK_OAUTH_SCOPES,
-            expiresIn = 28_800,
+            expiresIn = 28_800L,
             refreshToken = "refresh",
-            refreshTokenExpiresIn = 15_811_200,
+            refreshTokenExpiresIn = 15_811_200L,
         ).toDevicePollResponse()
 
         assertEquals("authorized", result.state)
         assertEquals("access", result.accessToken)
         assertEquals("refresh", result.refreshToken)
-        assertEquals(28_800, result.expiresIn)
-        assertEquals(15_811_200, result.refreshTokenExpiresIn)
+        assertEquals(28_800L, result.expiresIn)
+        assertEquals(15_811_200L, result.refreshTokenExpiresIn)
     }
 
     @Test
