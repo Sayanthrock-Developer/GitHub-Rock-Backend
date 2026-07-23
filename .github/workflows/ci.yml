@@ -64,11 +64,11 @@ jobs:
         if: steps.gradle-build.outcome == 'failure'
         run: exit 1
 
-      - name: Check out companion Android integration branch
+      - name: Check out companion Android main branch
         uses: actions/checkout@v7
         with:
           repository: Sayanthrock-Developer/GitHub-Rock
-          ref: integration/backend-v1
+          ref: main
           path: android-client
       - name: Switch to JDK 17 for Android
         uses: actions/setup-java@v5
