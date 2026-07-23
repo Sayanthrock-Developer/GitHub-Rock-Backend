@@ -68,3 +68,60 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build container
         run: docker build -t github-rock-backend:ci .
+
+  android-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GITHUB_CLIENT_ID: Ov23lim8WhLjeUMqvuMj
+      GITHUB_ROCK_BACKEND_URL: ""
+    steps:
+      - name: Check out companion Android integration branch
+        uses: actions/checkout@v7
+        with:
+          repository: Sayanthrock-Developer/GitHub-Rock
+          ref: integration/backend-v1
+          path: android-client
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.13"
+      - name: Generate Gradle wrapper
+        working-directory: android-client
+        run: gradle wrapper --gradle-version 8.13
+      - name: Unit tests
+        working-directory: android-client
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee unit-tests.log
+      - name: Compile Compose UI tests
+        working-directory: android-client
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebugAndroidTest --stacktrace 2>&1 | tee ui-tests.log
+      - name: Lint
+        working-directory: android-client
+        run: ./gradlew lintDebug --stacktrace
+      - name: Build debug APK
+        working-directory: android-client
+        run: ./gradlew assembleDebug --stacktrace
+      - name: Verify release build
+        working-directory: android-client
+        run: ./gradlew assembleRelease --stacktrace
+      - name: Upload Android verification
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: github-rock-android-integration
+          path: |
+            android-client/app/build/outputs/apk/debug/*.apk
+            android-client/app/build/reports/tests/
+            android-client/app/build/reports/lint-results-debug.html
+            android-client/unit-tests.log
+            android-client/ui-tests.log
+          if-no-files-found: warn
+          retention-days: 7
