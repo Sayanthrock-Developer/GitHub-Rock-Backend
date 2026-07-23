@@ -4,6 +4,7 @@ import com.sayanthrock.githubrock.backend.config.AppConfig
 import com.sayanthrock.githubrock.backend.model.DevicePollRequest
 import com.sayanthrock.githubrock.backend.model.ErrorResponse
 import com.sayanthrock.githubrock.backend.model.PublicConfigResponse
+import com.sayanthrock.githubrock.backend.model.TokenRefreshRequest
 import com.sayanthrock.githubrock.backend.model.WebhookAcceptedResponse
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
@@ -51,7 +52,8 @@ fun Application.configureRoutes() {
                         latestAppVersion = config.latestAppVersion,
                         maintenanceMode = config.maintenanceMode,
                         features = mapOf(
-                            "oauthDeviceProxy" to config.githubOauthClientId.isNotBlank(),
+                            "oauthDeviceProxy" to deviceFlowService.isConfigured,
+                            "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured,
                             "webhooks" to config.githubWebhookSecret.isNotBlank(),
                             "repositoryCache" to false,
                             "buildMonitoring" to false,
@@ -62,10 +64,37 @@ fun Application.configureRoutes() {
             }
 
             route("/auth/device") {
-                post("/start") { call.respond(deviceFlowService.start()) }
+                post("/start") {
+                    if (!deviceFlowService.isConfigured) {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"),
+                        )
+                        return@post
+                    }
+                    call.respond(deviceFlowService.start())
+                }
                 post("/poll") {
+                    if (!deviceFlowService.isConfigured) {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"),
+                        )
+                        return@post
+                    }
                     val request = call.receive<DevicePollRequest>()
                     call.respond(deviceFlowService.poll(request.deviceCode))
+                }
+                post("/refresh") {
+                    if (!deviceFlowService.isRefreshConfigured) {
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse("oauth_refresh_unavailable", "GitHub OAuth token refresh is not configured"),
+                        )
+                        return@post
+                    }
+                    val request = call.receive<TokenRefreshRequest>()
+                    call.respond(deviceFlowService.refresh(request.refreshToken))
                 }
             }
 
