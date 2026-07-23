@@ -8,6 +8,8 @@ Reports the backend, PostgreSQL, Redis, and Meilisearch state.
 
 Returns public app-version and feature-availability metadata. It never returns secrets.
 
+GitHub Rock validates this response before using backend-assisted authentication. The Android client requires `apiVersion=v1`, rejects maintenance mode, checks `minSupportedAppVersion`, and verifies the required OAuth feature flag. When the backend is unavailable or incompatible, the app uses its direct-GitHub fallback when a public OAuth client ID is present.
+
 Important mobile flags:
 
 - `oauthDeviceProxy` — Device Flow start and poll are available.
