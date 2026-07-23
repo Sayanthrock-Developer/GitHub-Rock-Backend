@@ -39,10 +39,16 @@ data class DeviceStartResponse(
 data class DevicePollRequest(@SerialName("device_code") val deviceCode: String)
 
 @Serializable
+data class TokenRefreshRequest(@SerialName("refresh_token") val refreshToken: String)
+
+@Serializable
 data class GitHubTokenResponse(
     @SerialName("access_token") val accessToken: String? = null,
     @SerialName("token_type") val tokenType: String? = null,
     val scope: String? = null,
+    @SerialName("expires_in") val expiresIn: Long? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
     val error: String? = null,
     @SerialName("error_description") val errorDescription: String? = null,
     val interval: Int? = null,
@@ -54,6 +60,9 @@ data class DevicePollResponse(
     @SerialName("access_token") val accessToken: String? = null,
     @SerialName("token_type") val tokenType: String? = null,
     val scope: String? = null,
+    @SerialName("expires_in") val expiresIn: Long? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
     val message: String? = null,
     val interval: Int? = null,
 )
