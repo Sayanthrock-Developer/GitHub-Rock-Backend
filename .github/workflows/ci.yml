@@ -12,7 +12,10 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
+    env:
+      GITHUB_CLIENT_ID: Ov23lim8WhLjeUMqvuMj
+      GITHUB_ROCK_BACKEND_URL: ""
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -34,7 +37,7 @@ jobs:
           docker compose config --quiet
           test -s LICENSE
           test -s web/index.html
-      - name: Build and test
+      - name: Build and test backend
         id: gradle-build
         continue-on-error: true
         shell: bash
@@ -57,9 +60,57 @@ jobs:
           path: build/libs/github-rock-backend.jar
           if-no-files-found: error
           retention-days: 14
-      - name: Enforce Gradle result
+      - name: Enforce backend Gradle result
         if: steps.gradle-build.outcome == 'failure'
         run: exit 1
+
+      - name: Check out companion Android main branch
+        uses: actions/checkout@v7
+        with:
+          repository: Sayanthrock-Developer/GitHub-Rock
+          ref: main
+          path: android-client
+      - name: Switch to JDK 17 for Android
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Generate Android Gradle wrapper
+        working-directory: android-client
+        run: gradle wrapper --gradle-version 8.13
+      - name: Android unit tests
+        working-directory: android-client
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee unit-tests.log
+      - name: Compile Compose UI tests
+        working-directory: android-client
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebugAndroidTest --stacktrace 2>&1 | tee ui-tests.log
+      - name: Android lint
+        working-directory: android-client
+        run: ./gradlew lintDebug --stacktrace
+      - name: Build debug APK
+        working-directory: android-client
+        run: ./gradlew assembleDebug --stacktrace
+      - name: Verify release APK
+        working-directory: android-client
+        run: ./gradlew assembleRelease --stacktrace
+      - name: Upload Android verification
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: github-rock-android-integration
+          path: |
+            android-client/app/build/outputs/apk/debug/*.apk
+            android-client/app/build/reports/tests/
+            android-client/app/build/reports/lint-results-debug.html
+            android-client/unit-tests.log
+            android-client/ui-tests.log
+          if-no-files-found: warn
+          retention-days: 7
 
   docker:
     runs-on: ubuntu-latest
