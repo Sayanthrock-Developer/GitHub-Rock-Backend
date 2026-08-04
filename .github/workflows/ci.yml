@@ -75,7 +75,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - name: Generate Android Gradle wrapper
         working-directory: android-client
         run: gradle wrapper --gradle-version 8.13
