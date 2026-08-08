@@ -60,6 +60,8 @@ jobs:
           path: build/libs/github-rock-backend.jar
           if-no-files-found: error
           retention-days: 14
+      - name: Gradle Cache
+        uses: burrunan/gradle-cache-action@rel/3.0.2
       - name: Enforce backend Gradle result
         if: steps.gradle-build.outcome == 'failure'
         run: exit 1
