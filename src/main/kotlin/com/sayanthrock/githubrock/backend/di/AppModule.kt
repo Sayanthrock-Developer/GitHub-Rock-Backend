@@ -1,6 +1,7 @@
 package com.sayanthrock.githubrock.backend.di
 
 import com.sayanthrock.githubrock.backend.config.AppConfig
+import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
 import com.sayanthrock.githubrock.backend.service.HealthService
@@ -22,6 +23,7 @@ val appModule = module {
     single {
         HttpClient(CIO) {
             expectSuccess = false
+            followRedirects = false
             install(ContentNegotiation) {
                 json(Json {
                     ignoreUnknownKeys = true
@@ -30,6 +32,7 @@ val appModule = module {
             }
         }
     }
+    single { RefreshTokenReplayGuard(get()) }
     single { WebhookVerifier(get<AppConfig>().githubWebhookSecret) }
     single { WebhookDeliveryRepository(get<HikariDataSource>()) }
     single { HealthService(get(), get<HikariDataSource>(), get(), get()) }
