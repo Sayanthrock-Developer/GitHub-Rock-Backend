@@ -7,7 +7,10 @@ import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
 import com.sayanthrock.githubrock.backend.service.GitHubWebOAuthService
 import com.sayanthrock.githubrock.backend.service.HealthService
+import com.sayanthrock.githubrock.backend.service.StoreCatalogService
 import com.sayanthrock.githubrock.backend.storage.WebhookDeliveryRepository
+import com.sayanthrock.githubrock.backend.store.STORE_CATEGORIES
+import com.sayanthrock.githubrock.backend.store.STORE_PLATFORMS
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodeURLParameter
 import io.ktor.server.application.Application
@@ -45,12 +48,48 @@ fun Application.configureRoutes() {
     val refreshTokenReplayGuard by inject<RefreshTokenReplayGuard>()
     val webhookVerifier by inject<WebhookVerifier>()
     val webhookDeliveries by inject<WebhookDeliveryRepository>()
+    val storeCatalogService by inject<StoreCatalogService>()
 
     routing {
         get("/") { call.respond(mapOf("name" to "GitHub Rock Backend", "api" to "/v1", "status" to "running")) }
         route("/v1") {
             get("/health") { val health = healthService.check(); call.respond(if (health.status == "healthy") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable, health) }
-            get("/config") { call.respond(PublicConfigResponse(minSupportedAppVersion = config.minSupportedAppVersion, latestAppVersion = config.latestAppVersion, maintenanceMode = config.maintenanceMode, features = mapOf("oauthDeviceProxy" to deviceFlowService.isConfigured, "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured, "oauthWeb" to webOAuthService.isConfigured, "webhooks" to config.githubWebhookSecret.isNotBlank(), "repositoryCache" to false, "buildMonitoring" to false, "settingsSync" to false))) }
+            get("/config") { call.respond(PublicConfigResponse(minSupportedAppVersion = config.minSupportedAppVersion, latestAppVersion = config.latestAppVersion, maintenanceMode = config.maintenanceMode, features = mapOf("oauthDeviceProxy" to deviceFlowService.isConfigured, "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured, "oauthWeb" to webOAuthService.isConfigured, "webhooks" to config.githubWebhookSecret.isNotBlank(), "repositoryCache" to true, "buildMonitoring" to false, "settingsSync" to false))) }
+
+            route("/store") {
+                get {
+                    call.respond(storeCatalogService.index())
+                }
+                get("/{category}/{platform}") {
+                    val category = call.parameters["category"]
+                    val platform = call.parameters["platform"]
+                    if (category !in STORE_CATEGORIES || platform !in STORE_PLATFORMS) {
+                        call.respond(HttpStatusCode.NotFound, ErrorResponse("store_not_found", "Unsupported store category or platform")); return@get
+                    }
+                    runCatching { storeCatalogService.catalog(category!!, platform!!) }
+                        .onSuccess { call.respond(it) }
+                        .onFailure { call.respond(HttpStatusCode.BadGateway, ErrorResponse("store_unavailable", "Store data is temporarily unavailable")) }
+                }
+                get("/search") {
+                    val query = call.request.queryParameters["q"].orEmpty()
+                    val category = call.request.queryParameters["category"]
+                    val platform = call.request.queryParameters["platform"]
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                    if (query.isBlank()) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing_query", "Search query is required")); return@get }
+                    runCatching { storeCatalogService.search(query, category, platform, limit) }
+                        .onSuccess { call.respond(it) }
+                        .onFailure { call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_store_query", it.message ?: "Invalid store query")) }
+                }
+                get("/repository/{owner}/{repo}") {
+                    val owner = call.parameters["owner"]
+                    val repo = call.parameters["repo"]
+                    if (owner.isNullOrBlank() || repo.isNullOrBlank()) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_repository", "Repository owner and name are required")); return@get }
+                    val result = storeCatalogService.search("$owner/$repo", null, null, 100).repositories.firstOrNull { it.fullName.equals("$owner/$repo", ignoreCase = true) }
+                    if (result == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("repository_not_found", "Repository is not present in the store catalog"))
+                    else call.respond(result)
+                }
+            }
+
             route("/auth/device") {
                 post("/start") {
                     if (!authRateLimiter.allow("start:${call.request.local.remoteHost}")) { call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post }
