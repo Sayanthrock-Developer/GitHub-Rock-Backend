@@ -10,10 +10,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import io.ktor.http.isSuccess
-import io.ktor.http.path
-import io.ktor.http.URLProtocol
-import io.ktor.http.takeFrom
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond
 import kotlinx.serialization.json.Json
@@ -25,7 +21,7 @@ class GitHubStoreBackendService(
 ) {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
-    suspend fun get(path: String, query: Map<String, String>): StoreProxyResult {
+    suspend fun get(path: String, query: Map<String, List<String>>): StoreProxyResult {
         val response = client.get(buildUrl(path, query))
         return response.toResult()
     }
@@ -38,13 +34,15 @@ class GitHubStoreBackendService(
         return response.toResult()
     }
 
-    private fun buildUrl(path: String, query: Map<String, String>): String = buildString {
+    private fun buildUrl(path: String, query: Map<String, List<String>>): String = buildString {
         append(config.storeBackendBaseUrl)
         append('/').append(path.trimStart('/'))
-        if (query.isNotEmpty()) {
-            append('?')
-            query.entries.joinTo(this, "&") { "${it.key.encodeURLParameter()}=${it.value.encodeURLParameter()}" }
-        }
+        query.entries.flatMap { (key, values) -> values.map { key to it } }
+            .takeIf { it.isNotEmpty() }
+            ?.let { entries ->
+                append('?')
+                entries.joinTo(this, "&") { "${it.first.encodeURLParameter()}=${it.second.encodeURLParameter()}" }
+            }
     }
 
     private suspend fun HttpResponse.toResult(): StoreProxyResult {
