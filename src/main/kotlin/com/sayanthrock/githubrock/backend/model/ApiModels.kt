@@ -5,72 +5,23 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ErrorResponse(val code: String, val message: String, val requestId: String? = null)
-
 @Serializable
-data class HealthResponse(
-    val status: String,
-    val version: String,
-    val postgres: String,
-    val redis: String,
-    val meilisearch: String,
-    val timestamp: String,
-)
-
+data class HealthResponse(val status: String, val version: String, val postgres: String, val redis: String, val meilisearch: String, val timestamp: String)
 @Serializable
-data class PublicConfigResponse(
-    val apiVersion: String = "v1",
-    val minSupportedAppVersion: String,
-    val latestAppVersion: String,
-    val maintenanceMode: Boolean,
-    val features: Map<String, Boolean>,
-)
-
+data class PublicConfigResponse(val apiVersion: String = "v1", val minSupportedAppVersion: String, val latestAppVersion: String, val maintenanceMode: Boolean, val features: Map<String, Boolean>)
 @Serializable
-data class DeviceStartResponse(
-    @SerialName("device_code") val deviceCode: String,
-    @SerialName("user_code") val userCode: String,
-    @SerialName("verification_uri") val verificationUri: String,
-    @SerialName("verification_uri_complete") val verificationUriComplete: String? = null,
-    @SerialName("expires_in") val expiresIn: Int,
-    val interval: Int = 5,
-)
-
+data class DeviceStartResponse(@SerialName("device_code") val deviceCode: String, @SerialName("user_code") val userCode: String, @SerialName("verification_uri") val verificationUri: String, @SerialName("verification_uri_complete") val verificationUriComplete: String? = null, @SerialName("expires_in") val expiresIn: Int, val interval: Int = 5)
 @Serializable
 data class DevicePollRequest(@SerialName("device_code") val deviceCode: String)
-
 @Serializable
 data class TokenRefreshRequest(@SerialName("refresh_token") val refreshToken: String)
-
 @Serializable
-data class GitHubTokenResponse(
-    @SerialName("access_token") val accessToken: String? = null,
-    @SerialName("token_type") val tokenType: String? = null,
-    val scope: String? = null,
-    @SerialName("expires_in") val expiresIn: Long? = null,
-    @SerialName("refresh_token") val refreshToken: String? = null,
-    @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
-    val error: String? = null,
-    @SerialName("error_description") val errorDescription: String? = null,
-    val interval: Int? = null,
-)
-
+data class WebOAuthExchangeRequest(val code: String, @SerialName("code_verifier") val codeVerifier: String)
 @Serializable
-data class DevicePollResponse(
-    val state: String,
-    @SerialName("access_token") val accessToken: String? = null,
-    @SerialName("token_type") val tokenType: String? = null,
-    val scope: String? = null,
-    @SerialName("expires_in") val expiresIn: Long? = null,
-    @SerialName("refresh_token") val refreshToken: String? = null,
-    @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null,
-    val message: String? = null,
-    val interval: Int? = null,
-)
-
+data class GitHubTokenResponse(@SerialName("access_token") val accessToken: String? = null, @SerialName("token_type") val tokenType: String? = null, val scope: String? = null, @SerialName("expires_in") val expiresIn: Long? = null, @SerialName("refresh_token") val refreshToken: String? = null, @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null, val error: String? = null, @SerialName("error_description") val errorDescription: String? = null, val interval: Int? = null)
 @Serializable
-data class WebhookAcceptedResponse(
-    val accepted: Boolean,
-    val duplicate: Boolean,
-    val deliveryId: String,
-    val event: String,
-)
+data class DevicePollResponse(val state: String, @SerialName("access_token") val accessToken: String? = null, @SerialName("token_type") val tokenType: String? = null, val scope: String? = null, @SerialName("expires_in") val expiresIn: Long? = null, @SerialName("refresh_token") val refreshToken: String? = null, @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null, val message: String? = null, val interval: Int? = null)
+@Serializable
+data class WebOAuthExchangeResponse(val state: String, @SerialName("access_token") val accessToken: String? = null, @SerialName("token_type") val tokenType: String? = null, val scope: String? = null, @SerialName("expires_in") val expiresIn: Long? = null, @SerialName("refresh_token") val refreshToken: String? = null, @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null, val message: String? = null)
+@Serializable
+data class WebhookAcceptedResponse(val accepted: Boolean, val duplicate: Boolean, val deliveryId: String, val event: String)
