@@ -13,6 +13,8 @@ import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
 import io.lettuce.core.RedisClient
 import io.sentry.Sentry
 import org.koin.ktor.ext.get
