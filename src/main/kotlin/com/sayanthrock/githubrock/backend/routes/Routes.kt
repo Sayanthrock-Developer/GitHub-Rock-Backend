@@ -5,6 +5,7 @@ import com.sayanthrock.githubrock.backend.model.*
 import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
+import com.sayanthrock.githubrock.backend.service.GitHubStoreBackendService
 import com.sayanthrock.githubrock.backend.service.GitHubWebOAuthService
 import com.sayanthrock.githubrock.backend.service.HealthService
 import com.sayanthrock.githubrock.backend.storage.WebhookDeliveryRepository
@@ -42,6 +43,7 @@ fun Application.configureRoutes() {
     val healthService by inject<HealthService>()
     val deviceFlowService by inject<GitHubDeviceFlowService>()
     val webOAuthService by inject<GitHubWebOAuthService>()
+    val storeBackendService by inject<GitHubStoreBackendService>()
     val refreshTokenReplayGuard by inject<RefreshTokenReplayGuard>()
     val webhookVerifier by inject<WebhookVerifier>()
     val webhookDeliveries by inject<WebhookDeliveryRepository>()
@@ -50,7 +52,7 @@ fun Application.configureRoutes() {
         get("/") { call.respond(mapOf("name" to "GitHub Rock Backend", "api" to "/v1", "status" to "running")) }
         route("/v1") {
             get("/health") { val health = healthService.check(); call.respond(if (health.status == "healthy") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable, health) }
-            get("/config") { call.respond(PublicConfigResponse(minSupportedAppVersion = config.minSupportedAppVersion, latestAppVersion = config.latestAppVersion, maintenanceMode = config.maintenanceMode, features = mapOf("oauthDeviceProxy" to deviceFlowService.isConfigured, "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured, "oauthWeb" to webOAuthService.isConfigured, "webhooks" to config.githubWebhookSecret.isNotBlank(), "repositoryCache" to false, "buildMonitoring" to false, "settingsSync" to false))) }
+            get("/config") { call.respond(PublicConfigResponse(minSupportedAppVersion = config.minSupportedAppVersion, latestAppVersion = config.latestAppVersion, maintenanceMode = config.maintenanceMode, features = mapOf("oauthDeviceProxy" to deviceFlowService.isConfigured, "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured, "oauthWeb" to webOAuthService.isConfigured, "webhooks" to config.githubWebhookSecret.isNotBlank(), "repositoryCache" to true, "storeBackend" to true, "storeSearch" to true, "storeExplore" to true, "storeCategories" to true, "storeTopics" to true, "storeRepository" to true, "storeReadme" to true, "storeUser" to true, "storeEvents" to true, "storeBadges" to true, "buildMonitoring" to false, "settingsSync" to false))) }
             route("/auth/device") {
                 post("/start") {
                     if (!authRateLimiter.allow("start:${call.request.local.remoteHost}")) { call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post }
