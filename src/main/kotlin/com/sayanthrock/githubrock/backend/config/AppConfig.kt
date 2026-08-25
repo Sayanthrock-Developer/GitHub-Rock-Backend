@@ -19,6 +19,7 @@ data class AppConfig(
     val latestAppVersion: String,
     val maintenanceMode: Boolean,
     val sentryDsn: String?,
+    val storeBackendBaseUrl: String,
 ) {
     val isProduction: Boolean get() = environment.equals("production", ignoreCase = true)
 
@@ -47,6 +48,9 @@ data class AppConfig(
         require(publicBaseUrl.startsWith("https://")) {
             "PUBLIC_BASE_URL must use HTTPS in production"
         }
+        require(storeBackendBaseUrl.startsWith("https://")) {
+            "STORE_BACKEND_BASE_URL must use HTTPS in production"
+        }
     }
 
     companion object {
@@ -69,6 +73,7 @@ data class AppConfig(
             latestAppVersion = env["LATEST_APP_VERSION"] ?: "0.1.0",
             maintenanceMode = env["MAINTENANCE_MODE"].toBoolean(),
             sentryDsn = env["SENTRY_DSN"]?.takeIf(String::isNotBlank),
+            storeBackendBaseUrl = (env["STORE_BACKEND_BASE_URL"] ?: "https://api.github-store.org").trimEnd('/'),
         )
     }
 }
