@@ -2,48 +2,98 @@
 
 Production-oriented Kotlin/Ktor backend for the **GitHub Rock** Android developer control centre.
 
-> The Android app remains usable without this service. Direct GitHub repository, issue, pull-request, workflow, release, and download actions continue to use the user's GitHub authorization whenever possible.
+The backend now also exposes a GitHub Store-compatible API surface modeled on:
+
+- **Reference backend:** https://github.com/kurikomi-labs/komi-store-backend
+- **Reference catalog data:** https://github.com/kurikomi-labs/komi-store-backend-data
+
+The integration is real-data driven. It does not ship mock repositories or demo catalog entries.
 
 ## What this project does
 
-GitHub Rock Backend provides the small set of server-side capabilities that should not live inside the Android application, especially OAuth operations that require a client secret and verified GitHub webhook intake.
+- GitHub OAuth Device Flow and web OAuth proxy
+- GitHub webhook verification and replay protection
+- Public health and runtime configuration
+- **Komi-compatible store search and discovery**
+- Repository details and README lookup
+- User lookup
+- Topic/category/platform discovery
+- Store telemetry forwarding
+- M3 badge endpoints
 
-The service is intentionally stateless for OAuth access tokens: GitHub tokens are proxied to the Android client and are not stored by this service.
+The Android app can consume the GitHub Rock API without depending on the upstream service's hostname.
 
-### Main capabilities
-
-- GitHub OAuth Device Flow start, polling, and refresh proxy
-- Android-aligned OAuth scopes, including follow/unfollow support
-- GitHub webhook signature verification and delivery replay protection
-- PostgreSQL persistence for webhook delivery IDs
-- Redis and Meilisearch connectivity for future backend-assisted features
-- Public health and runtime configuration endpoints
-- Structured JSON errors and request logging without token bodies
-- Production Docker Compose deployment with Caddy, PostgreSQL, Redis, and Meilisearch
-
-## Architecture
+## Store architecture
 
 ```text
 GitHub Rock Android
         |
+        | HTTPS /v1/store/*
+        v
+GitHub Rock Backend
+        |
         | HTTPS
         v
-      Caddy
+Komi-compatible Store Backend
+kurikomi-labs/komi-store-backend
         |
-        v
-   Ktor Backend
-     /     \
-    /       \
- GitHub   PostgreSQL
-   API       |
-             +-- webhook delivery IDs
-
-Redis / Meilisearch remain private Docker-network dependencies.
+        +--> catalog / GitHub data
 ```
 
-Only Caddy exposes public ports in the production Compose stack. PostgreSQL, Redis, Meilisearch, and Ktor remain on the private Docker network.
+The upstream URL is configurable through `STORE_BACKEND_BASE_URL`. The production default is:
 
-## API
+`https://api.github-store.org`
+
+This keeps the app-facing API stable while allowing the backend operator to change the upstream deployment without changing the Android client.
+
+## Store API
+
+All GitHub Store-compatible endpoints are available under `/v1/store/`:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/v1/store/health` | Upstream store health |
+| GET | `/v1/store/search?q=` | Search store repositories |
+| GET | `/v1/store/search/explore?q=&page=` | Deep paginated search |
+| GET | `/v1/store/categories/{category}/{platform}` | Ranked category/platform repositories |
+| GET | `/v1/store/topics/{bucket}/{platform}` | Topic-bucketed repositories |
+| GET | `/v1/store/repo/{owner}/{name}` | Repository details |
+| GET | `/v1/store/readme/{owner}/{name}` | Cached repository README |
+| GET | `/v1/store/user/{username}` | Cached GitHub user data |
+| POST | `/v1/store/events` | Opt-in store telemetry |
+| GET | `/v1/store/badge/{owner}/{name}/{kind}/{style}/{variant}` | Per-repository badge |
+| GET | `/v1/store/badge/{kind}/{style}/{variant}` | Global badge |
+
+Query parameters are forwarded without collapsing repeated values, so pagination, filters, and multi-value search parameters remain compatible with the upstream API.
+
+### Example
+
+```bash
+curl 'http://localhost/v1/store/search?q=kotlin'
+
+curl 'http://localhost/v1/store/categories/android/trending'
+
+curl 'http://localhost/v1/store/repo/OpenHub-Store/GitHub-Store'
+```
+
+## Public configuration
+
+`GET /v1/config` advertises the store capability flags so the Android client can enable the corresponding UI options only when the backend supports them.
+
+Store capabilities include:
+
+- `storeBackend`
+- `storeSearch`
+- `storeExplore`
+- `storeCategories`
+- `storeTopics`
+- `storeRepository`
+- `storeReadme`
+- `storeUser`
+- `storeEvents`
+- `storeBadges`
+
+## Core API
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -52,146 +102,62 @@ Only Caddy exposes public ports in the production Compose stack. PostgreSQL, Red
 | POST | `/v1/auth/device/start` | Start GitHub Device Flow |
 | POST | `/v1/auth/device/poll` | Poll GitHub Device Flow |
 | POST | `/v1/auth/device/refresh` | Refresh an expiring GitHub OAuth token |
+| GET | `/v1/auth/github/start` | Start web OAuth with PKCE |
+| GET | `/v1/auth/github/callback` | Validate OAuth callback parameters |
+| POST | `/v1/auth/github/exchange` | Exchange authorization code for tokens |
 | POST | `/v1/github/webhooks` | Verify and accept GitHub webhooks |
 
 Full request/response details are in [`docs/API.md`](docs/API.md).
 
-## API examples
+## Configuration
 
-### Check backend health
-
-```bash
-curl http://localhost/v1/health
-```
-
-A healthy deployment returns JSON describing the backend and its configured dependencies. Use the endpoint as the first deployment smoke test.
-
-### Read public configuration
+Copy `.env.example` to `.env` and configure the deployment:
 
 ```bash
-curl http://localhost/v1/config
+cp .env.example .env
 ```
 
-The response contains public compatibility and feature metadata only. It must never contain OAuth client secrets or other server-only credentials.
+The store integration uses:
 
-### Start GitHub Device Flow
-
-```bash
-curl -X POST http://localhost/v1/auth/device/start
+```text
+STORE_BACKEND_BASE_URL=https://api.github-store.org
 ```
 
-When OAuth is configured, the response contains the GitHub Device Flow information required by the Android client. If OAuth is unavailable, the backend returns an `oauth_unavailable` error instead of exposing server configuration.
+For a self-hosted compatible deployment, point this variable at that deployment's base URL. Production validation requires an HTTPS URL.
 
-### Poll Device Flow
-
-```bash
-curl -X POST http://localhost/v1/auth/device/poll \
-  -H 'Content-Type: application/json' \
-  -d '{"device_code":"YOUR_DEVICE_CODE"}'
-```
-
-Possible authorization states include `pending`, `slow_down`, `authorized`, `expired`, and `denied`.
-
-### Refresh an OAuth token
-
-```bash
-curl -X POST http://localhost/v1/auth/device/refresh \
-  -H 'Content-Type: application/json' \
-  -d '{"refresh_token":"YOUR_REFRESH_TOKEN"}'
-```
-
-The refresh token is exchanged through GitHub using the server-only client secret. The backend does not persist the token.
-
-### GitHub webhook endpoint
-
-```bash
-curl -X POST http://localhost/v1/github/webhooks \
-  -H 'X-GitHub-Event: ping' \
-  -H 'X-GitHub-Delivery: example-delivery-id' \
-  -H 'X-Hub-Signature-256: sha256=YOUR_HMAC_SIGNATURE' \
-  -H 'Content-Type: application/json' \
-  -d '{"zen":"example"}'
-```
-
-Webhook requests must include a valid HMAC-SHA256 signature and delivery ID. The server caps payloads at 1 MiB and rejects replayed delivery IDs.
-
-> **Security:** The values marked `YOUR_*` are examples only. Never commit real access tokens, refresh tokens, OAuth client secrets, webhook secrets, or generated signatures.
-
-## Connect the Android app
-
-1. Deploy this repository behind HTTPS.
-2. Configure `GITHUB_OAUTH_CLIENT_ID` and the server-only `GITHUB_OAUTH_CLIENT_SECRET`.
-3. Verify `/v1/health` and `/v1/config`.
-4. In GitHub Rock, open **Profile → About → App information → GitHub Rock Backend connection**.
-5. Enter the deployed HTTPS base URL and run the connection test.
-
-The Android app can also receive the endpoint at build time through `GITHUB_ROCK_BACKEND_URL`. The OAuth client secret must never be copied into the Android repository, `local.properties`, GitHub Actions variables, or an APK.
-
-## Included in v0.1
-
-- Kotlin 2.4, Ktor 3.5, and JDK 21
-- PostgreSQL with Flyway migrations and HikariCP
-- Redis connectivity
-- Meilisearch connectivity
-- Public health and runtime configuration endpoints
-- Stateless GitHub OAuth Device Flow start, poll, and refresh proxy
-- Android-aligned OAuth scopes, including native follow/unfollow support
-- HMAC-SHA256 GitHub webhook verification
-- Webhook replay protection using delivery IDs
-- Structured JSON errors
-- Request logging without token bodies
-- Docker Compose stack with Caddy, PostgreSQL, Redis, and Meilisearch
-- Unit tests, Gradle CI, Docker CI, and Dependabot
-
-## Languages
-
-| Language group | Purpose |
-|---|---|
-| Kotlin | Ktor application, services, routes, security, storage, and tests |
-| HTML | Static backend status and API overview in [`web/index.html`](web/index.html) |
-| Shell | Local verification and Docker Compose startup scripts |
-| Other | Docker, YAML, SQL, Gradle Kotlin DSL, Caddy, and configuration files |
+OAuth client secrets, webhook secrets, database passwords, and other server-only credentials must never be copied into the Android project or APK.
 
 ## Run locally
 
 ```bash
-cp .env.example .env
-# Fill GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET, and GITHUB_WEBHOOK_SECRET
 bash scripts/start-local.sh
 ```
 
-Open `http://localhost/v1/health`. Caddy is the only public service; the Ktor application remains private on the Docker network.
+Then verify:
+
+```bash
+curl http://localhost/v1/health
+curl http://localhost/v1/config
+curl 'http://localhost/v1/store/search?q=kotlin'
+```
 
 ## Verify before a pull request
 
-Run the unit tests, fat-JAR build, Compose validation, Shell syntax checks, and Docker image build:
+Run the repository's verification script:
 
 ```bash
 bash scripts/verify.sh
 ```
 
-Set `BUILD_CONTAINER=0` only when you intentionally need to skip the local container build:
+This validates the Gradle build/tests, Compose-related checks, shell scripts, Compose configuration, and Docker image build used by CI.
 
-```bash
-BUILD_CONTAINER=0 bash scripts/verify.sh
-```
+## Security
 
-The direct CI build uses Gradle 8.13 with JDK 21. The Docker build independently verifies the Gradle 9.6 builder image.
-
-## Production requirements
-
-Set `APP_ENV=production`, use an HTTPS `PUBLIC_BASE_URL`, and replace every placeholder secret. Set `CADDY_ADDRESS` to the production hostname, such as `api.example.com`, so Caddy provisions HTTPS automatically. The application refuses to start when production configuration is missing or unsafe.
-
-Only Caddy exposes public ports. PostgreSQL, Redis, Meilisearch, and the Ktor application remain on the private Docker network.
-
-## Next milestones
-
-1. GitHub App installation JWT and short-lived installation tokens
-2. Repository, release, and workflow caching
-3. Meilisearch indexing and GitHub fallback search
-4. Workflow-run monitoring and push notification delivery
-5. Optional favourites, settings, and recent-history sync
-6. Privacy-safe opt-in telemetry and announcements
+- OAuth access and refresh tokens are not persisted by this service.
+- Webhook payloads require HMAC-SHA256 verification and replay protection.
+- Store responses are proxied as JSON without logging token bodies.
+- Store telemetry remains opt-in.
+- Production upstream configuration requires HTTPS.
 
 ## License
 
