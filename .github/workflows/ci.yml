@@ -25,7 +25,7 @@ jobs:
           cache: gradle
       - uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: "8.13"
+          gradle-version: "8.14.4"
       - name: Validate repository files
         shell: bash
         run: |
@@ -80,7 +80,7 @@ jobs:
       - uses: android-actions/setup-android@v4
       - name: Generate Android Gradle wrapper
         working-directory: android-client
-        run: gradle wrapper --gradle-version 8.13
+        run: gradle wrapper --gradle-version 8.14.4
       - name: Android unit tests
         working-directory: android-client
         run: |
