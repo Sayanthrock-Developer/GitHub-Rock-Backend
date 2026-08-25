@@ -5,19 +5,23 @@ import com.sayanthrock.githubrock.backend.model.DevicePollRequest
 import com.sayanthrock.githubrock.backend.model.ErrorResponse
 import com.sayanthrock.githubrock.backend.model.PublicConfigResponse
 import com.sayanthrock.githubrock.backend.model.TokenRefreshRequest
+import com.sayanthrock.githubrock.backend.model.WebOAuthExchangeRequest
 import com.sayanthrock.githubrock.backend.model.WebhookAcceptedResponse
 import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
+import com.sayanthrock.githubrock.backend.service.GitHubWebOAuthService
 import com.sayanthrock.githubrock.backend.service.HealthService
 import com.sayanthrock.githubrock.backend.storage.WebhookDeliveryRepository
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodeURLParameter
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
@@ -52,6 +56,7 @@ fun Application.configureRoutes() {
     val config by inject<AppConfig>()
     val healthService by inject<HealthService>()
     val deviceFlowService by inject<GitHubDeviceFlowService>()
+    val webOAuthService by inject<GitHubWebOAuthService>()
     val refreshTokenReplayGuard by inject<RefreshTokenReplayGuard>()
     val webhookVerifier by inject<WebhookVerifier>()
     val webhookDeliveries by inject<WebhookDeliveryRepository>()
@@ -79,6 +84,7 @@ fun Application.configureRoutes() {
                         features = mapOf(
                             "oauthDeviceProxy" to deviceFlowService.isConfigured,
                             "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured,
+                            "oauthWeb" to webOAuthService.isConfigured,
                             "webhooks" to config.githubWebhookSecret.isNotBlank(),
                             "repositoryCache" to false,
                             "buildMonitoring" to false,
@@ -96,10 +102,7 @@ fun Application.configureRoutes() {
                         return@post
                     }
                     if (!deviceFlowService.isConfigured) {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"),
-                        )
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"))
                         return@post
                     }
                     call.response.header("Cache-Control", "no-store")
@@ -112,10 +115,7 @@ fun Application.configureRoutes() {
                         return@post
                     }
                     if (!deviceFlowService.isConfigured) {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"),
-                        )
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("oauth_unavailable", "GitHub OAuth Device Flow is not configured"))
                         return@post
                     }
                     val request = call.receive<DevicePollRequest>()
@@ -133,10 +133,7 @@ fun Application.configureRoutes() {
                         return@post
                     }
                     if (!deviceFlowService.isRefreshConfigured) {
-                        call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            ErrorResponse("oauth_refresh_unavailable", "GitHub OAuth token refresh is not configured"),
-                        )
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("oauth_refresh_unavailable", "GitHub OAuth token refresh is not configured"))
                         return@post
                     }
                     val request = call.receive<TokenRefreshRequest>()
@@ -153,31 +150,103 @@ fun Application.configureRoutes() {
                 }
             }
 
+            route("/auth/github") {
+                get("/start") {
+                    val rateKey = "web-start:${call.request.local.remoteHost}"
+                    if (!authRateLimiter.allow(rateKey)) {
+                        call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests"))
+                        return@get
+                    }
+                    if (!webOAuthService.isConfigured) {
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("oauth_web_unavailable", "GitHub web OAuth is not configured"))
+                        return@get
+                    }
+                    val state = call.request.queryParameters["state"]
+                    if (state.isNullOrBlank() || state.length !in 32..256) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_state", "A valid OAuth state is required"))
+                        return@get
+                    }
+                    call.response.header("Cache-Control", "no-store")
+                    call.respondRedirect(webOAuthService.authorizationUrl(state), permanent = false)
+                }
+
+                get("/callback") {
+                    val code = call.request.queryParameters["code"]
+                    val state = call.request.queryParameters["state"]
+                    val error = call.request.queryParameters["error"]
+                    if (error != null) {
+                        val errorDescription = call.request.queryParameters["error_description"] ?: "GitHub authorization was not completed."
+                        call.respondRedirect(
+                            "githubrock://oauth/callback?error=${error.encodeURLParameter()}&error_description=${errorDescription.encodeURLParameter()}",
+                            permanent = false,
+                        )
+                        return@get
+                    }
+                    if (code.isNullOrBlank() || state.isNullOrBlank() || state.length !in 32..256 || code.length !in 10..4096) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_callback", "GitHub OAuth callback is missing required parameters"))
+                        return@get
+                    }
+                    call.response.header("Cache-Control", "no-store")
+                    call.respondRedirect(
+                        "githubrock://oauth/callback?code=${code.encodeURLParameter()}&state=${state.encodeURLParameter()}",
+                        permanent = false,
+                    )
+                }
+
+                post("/exchange") {
+                    val rateKey = "web-exchange:${call.request.local.remoteHost}"
+                    if (!authRateLimiter.allow(rateKey)) {
+                        call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests"))
+                        return@post
+                    }
+                    if (!webOAuthService.isConfigured) {
+                        call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("oauth_web_unavailable", "GitHub web OAuth is not configured"))
+                        return@post
+                    }
+                    val request = call.receive<WebOAuthExchangeRequest>()
+                    if (request.code.length !in 10..4096) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_code", "Invalid authorization code"))
+                        return@post
+                    }
+                    val response = webOAuthService.exchange(request.code)
+                    if (response.accessToken.isNullOrBlank()) {
+                        call.respond(
+                            HttpStatusCode.Unauthorized,
+                            ErrorResponse("oauth_exchange_failed", response.errorDescription ?: "GitHub authorization code could not be exchanged"),
+                        )
+                        return@post
+                    }
+                    call.response.header("Cache-Control", "no-store")
+                    call.respond(
+                        mapOf(
+                            "state" to "authorized",
+                            "access_token" to response.accessToken,
+                            "token_type" to response.tokenType,
+                            "scope" to response.scope,
+                            "expires_in" to response.expiresIn,
+                            "refresh_token" to response.refreshToken,
+                            "refresh_token_expires_in" to response.refreshTokenExpiresIn,
+                        )
+                    )
+                }
+            }
+
             post("/github/webhooks") {
                 val signature = call.request.headers["X-Hub-Signature-256"]
                 val deliveryId = call.request.headers["X-GitHub-Delivery"]
                 val event = call.request.headers["X-GitHub-Event"]
                 if (deliveryId.isNullOrBlank() || event.isNullOrBlank()) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse("missing_headers", "GitHub delivery and event headers are required"),
-                    )
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing_headers", "GitHub delivery and event headers are required"))
                     return@post
                 }
 
                 val payload = call.receiveChannel().readRemaining(max = 1_048_577L).readByteArray()
                 if (payload.size > 1_048_576) {
-                    call.respond(
-                        HttpStatusCode.PayloadTooLarge,
-                        ErrorResponse("payload_too_large", "Webhook payload exceeds 1 MiB"),
-                    )
+                    call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("payload_too_large", "Webhook payload exceeds 1 MiB"))
                     return@post
                 }
                 if (!webhookVerifier.verify(payload, signature)) {
-                    call.respond(
-                        HttpStatusCode.Unauthorized,
-                        ErrorResponse("invalid_signature", "Webhook signature is invalid"),
-                    )
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid_signature", "Webhook signature is invalid"))
                     return@post
                 }
 
