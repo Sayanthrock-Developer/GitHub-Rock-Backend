@@ -9,7 +9,6 @@ import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
-import io.ktor.http.encodeURLParameter
 
 internal const val GITHUB_ROCK_WEB_OAUTH_SCOPES =
     "repo workflow read:user user:email read:org notifications user:follow"
@@ -51,6 +50,3 @@ class GitHubWebOAuthService(
         }.body()
     }
 }
-
-internal fun githubOAuthAppCallbackUrl(publicBaseUrl: String): String =
-    "${publicBaseUrl.trimEnd('/')}/v1/auth/github/callback"
