@@ -5,6 +5,7 @@ import com.sayanthrock.githubrock.backend.di.appModule
 import com.sayanthrock.githubrock.backend.plugins.configureHttp
 import com.sayanthrock.githubrock.backend.plugins.configureSerialization
 import com.sayanthrock.githubrock.backend.routes.configureRoutes
+import com.sayanthrock.githubrock.backend.routes.configureStoreRoutes
 import com.sayanthrock.githubrock.backend.storage.migrateDatabase
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.Application
@@ -45,6 +46,11 @@ fun Application.module() {
     configureSerialization()
     configureHttp()
     configureRoutes()
+    routing {
+        route("/v1") {
+            configureStoreRoutes()
+        }
+    }
 
     monitor.subscribe(ApplicationStopped) {
         runCatching { get<RedisClient>().shutdown() }
