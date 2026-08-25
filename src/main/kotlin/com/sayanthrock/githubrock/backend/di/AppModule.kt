@@ -4,6 +4,7 @@ import com.sayanthrock.githubrock.backend.config.AppConfig
 import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
+import com.sayanthrock.githubrock.backend.service.GitHubStoreBackendService
 import com.sayanthrock.githubrock.backend.service.GitHubWebOAuthService
 import com.sayanthrock.githubrock.backend.service.HealthService
 import com.sayanthrock.githubrock.backend.storage.WebhookDeliveryRepository
@@ -39,4 +40,5 @@ val appModule = module {
     single { HealthService(get(), get<HikariDataSource>(), get(), get()) }
     single { GitHubDeviceFlowService(get(), get()) }
     single { GitHubWebOAuthService(get(), get()) }
+    single { GitHubStoreBackendService(get(), get()) }
 }
