@@ -2,6 +2,7 @@ package com.sayanthrock.githubrock.backend
 
 import com.sayanthrock.githubrock.backend.model.GitHubTokenResponse
 import com.sayanthrock.githubrock.backend.service.GITHUB_ROCK_OAUTH_SCOPES
+import com.sayanthrock.githubrock.backend.service.GITHUB_ROCK_WEB_OAUTH_SCOPES
 import com.sayanthrock.githubrock.backend.service.toDevicePollResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,17 +12,12 @@ class OAuthContractTest {
     @Test
     fun `backend requests every Android GitHub scope`() {
         val scopes = GITHUB_ROCK_OAUTH_SCOPES.split(' ').toSet()
-        assertTrue(
-            setOf(
-                "repo",
-                "workflow",
-                "read:user",
-                "user:email",
-                "read:org",
-                "notifications",
-                "user:follow",
-            ).all(scopes::contains)
-        )
+        assertTrue(setOf("repo", "workflow", "read:user", "user:email", "read:org", "notifications", "user:follow").all(scopes::contains))
+    }
+
+    @Test
+    fun `web OAuth requests the same permissions as device flow`() {
+        assertEquals(GITHUB_ROCK_OAUTH_SCOPES, GITHUB_ROCK_WEB_OAUTH_SCOPES)
     }
 
     @Test
@@ -34,7 +30,6 @@ class OAuthContractTest {
             refreshToken = "refresh",
             refreshTokenExpiresIn = 15_811_200L,
         ).toDevicePollResponse()
-
         assertEquals("authorized", result.state)
         assertEquals("access", result.accessToken)
         assertEquals("refresh", result.refreshToken)
@@ -44,13 +39,7 @@ class OAuthContractTest {
 
     @Test
     fun `pending and slow down states remain explicit`() {
-        assertEquals(
-            "pending",
-            GitHubTokenResponse(error = "authorization_pending").toDevicePollResponse().state,
-        )
-        assertEquals(
-            "slow_down",
-            GitHubTokenResponse(error = "slow_down", interval = 10).toDevicePollResponse().state,
-        )
+        assertEquals("pending", GitHubTokenResponse(error = "authorization_pending").toDevicePollResponse().state)
+        assertEquals("slow_down", GitHubTokenResponse(error = "slow_down", interval = 10).toDevicePollResponse().state)
     }
 }
