@@ -14,11 +14,11 @@ fail() {
 }
 
 command -v java >/dev/null 2>&1 || fail "Java is required. Install JDK 21 or newer."
-command -v gradle >/dev/null 2>&1 || fail "Gradle is required. Install Gradle 8.13 or newer, or use the CI workflow."
+command -v gradle >/dev/null 2>&1 || fail "Gradle is required. Install Gradle 8.14.4 or newer, or use the CI workflow."
 command -v docker >/dev/null 2>&1 || fail "Docker is required for Compose validation and the container build."
 docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 is required."
 
-gradle_version="$(gradle --version | awk '/^Gradle / { print $2; exit }')"
+gradle_version="$(./gradlew --version | awk '/^Gradle / { print $2; exit }')"
 java_version="$(java -version 2>&1 | head -n 1)"
 
 printf 'Gradle: %s\n' "${gradle_version:-unknown}"
@@ -47,7 +47,7 @@ log "Validating Docker Compose configuration"
 docker compose config --quiet
 
 log "Running unit tests and building the Ktor fat JAR"
-gradle --no-daemon --console=plain clean test buildFatJar
+./gradlew --no-daemon --console=plain clean test buildFatJar
 
 jar_path="build/libs/github-rock-backend.jar"
 [[ -s "$jar_path" ]] || fail "Expected server JAR was not created at $jar_path"
