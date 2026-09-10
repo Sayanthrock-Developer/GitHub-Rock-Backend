@@ -7,6 +7,7 @@ import com.sayanthrock.githubrock.backend.plugins.configureSerialization
 import com.sayanthrock.githubrock.backend.routes.configureRoutes
 import com.sayanthrock.githubrock.backend.storage.migrateDatabase
 import com.zaxxer.hikari.HikariDataSource
+import io.ktor.client.HttpClient
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
@@ -40,6 +41,7 @@ fun Application.module() {
 
     val config = get<AppConfig>()
     val dataSource = get<HikariDataSource>()
+    val httpClient = get<HttpClient>()
     migrateDatabase(config, dataSource)
 
     configureSerialization()
@@ -47,6 +49,7 @@ fun Application.module() {
     configureRoutes()
 
     monitor.subscribe(ApplicationStopped) {
+        runCatching { httpClient.close() }
         runCatching { get<RedisClient>().shutdown() }
         runCatching { dataSource.close() }
         Sentry.close()
