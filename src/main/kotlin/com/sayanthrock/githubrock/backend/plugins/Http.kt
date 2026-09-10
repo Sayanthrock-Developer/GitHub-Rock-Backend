@@ -1,5 +1,6 @@
 package com.sayanthrock.githubrock.backend.plugins
 
+import com.sayanthrock.githubrock.backend.config.AppConfig
 import com.sayanthrock.githubrock.backend.model.ErrorResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -16,18 +17,27 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import org.slf4j.event.Level
+import org.koin.ktor.ext.inject
 
 fun Application.configureHttp() {
+    val config by inject<AppConfig>()
+
     install(DefaultHeaders) {
         header("X-Content-Type-Options", "nosniff")
         header("Referrer-Policy", "no-referrer")
         header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        header("X-Frame-Options", "DENY")
+        header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        if (config.isProduction) {
+            header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        }
     }
     install(Compression)
     install(AutoHeadResponse)
     install(CallLogging) {
         level = Level.INFO
         filter { call -> !call.request.path().contains("/health") }
+        format { call -> "${call.request.httpMethod.value} ${call.request.path()}" }
     }
     install(CORS) {
         allowMethod(HttpMethod.Get)
