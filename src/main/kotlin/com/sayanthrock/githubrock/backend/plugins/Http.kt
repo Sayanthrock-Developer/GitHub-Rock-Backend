@@ -10,6 +10,7 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.plugins.autohead.AutoHeadResponse
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.callid.CallId
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.defaultheaders.DefaultHeaders
@@ -18,6 +19,7 @@ import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import org.slf4j.event.Level
+import java.util.UUID
 import org.koin.ktor.ext.inject
 
 fun Application.configureHttp() {
@@ -32,6 +34,11 @@ fun Application.configureHttp() {
         if (config.isProduction) {
             header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         }
+    }
+    install(CallId) {
+        retrieveFromHeader("X-Request-ID")
+        generate { UUID.randomUUID().toString() }
+        verify { value -> value.length in 16..128 }
     }
     install(Compression)
     install(AutoHeadResponse)
