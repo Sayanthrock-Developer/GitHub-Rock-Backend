@@ -6,6 +6,7 @@ import com.sayanthrock.githubrock.backend.plugins.configureHttp
 import com.sayanthrock.githubrock.backend.plugins.configureSerialization
 import com.sayanthrock.githubrock.backend.routes.configureRoutes
 import com.sayanthrock.githubrock.backend.storage.migrateDatabase
+import com.sayanthrock.githubrock.backend.security.AuthRateLimiter
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.client.HttpClient
 import io.ktor.server.application.Application
@@ -42,6 +43,7 @@ fun Application.module() {
     val config = get<AppConfig>()
     val dataSource = get<HikariDataSource>()
     val httpClient = get<HttpClient>()
+    val authRateLimiter = get<AuthRateLimiter>()
     migrateDatabase(config, dataSource)
 
     configureSerialization()
@@ -50,6 +52,7 @@ fun Application.module() {
 
     monitor.subscribe(ApplicationStopped) {
         runCatching { httpClient.close() }
+        runCatching { authRateLimiter.close() }
         runCatching { get<RedisClient>().shutdown() }
         runCatching { dataSource.close() }
         Sentry.close()
