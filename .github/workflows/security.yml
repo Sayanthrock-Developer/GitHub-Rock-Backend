@@ -35,7 +35,7 @@ jobs:
         with:
           gradle-version: "8.14.4"
       - name: Build for CodeQL
-        run: gradle --no-daemon --console=plain classes testClasses
+        run: ./gradlew --no-daemon --console=plain classes testClasses
       - name: Analyze
         uses: github/codeql-action/analyze@v3
 
