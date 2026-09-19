@@ -1,7 +1,7 @@
 FROM gradle:9.6-jdk21 AS build
 WORKDIR /workspace
 COPY . .
-RUN gradle --no-daemon clean buildFatJar
+RUN chmod +x gradlew && ./gradlew --no-daemon clean buildFatJar
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
