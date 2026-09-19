@@ -24,8 +24,6 @@ jobs:
           java-version: "21"
           cache: gradle
       - uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "8.14.4"
       - name: Validate repository files
         shell: bash
         run: |
@@ -38,12 +36,10 @@ jobs:
           test -s LICENSE
           test -s web/index.html
       - name: Build and test backend
-        id: gradle-build
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          gradle --no-daemon --console=plain clean test buildFatJar 2>&1 | tee gradle-build.log
+          ./gradlew --no-daemon --console=plain clean test buildFatJar 2>&1 | tee gradle-build.log
       - name: Upload Gradle diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -53,19 +49,13 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Upload server JAR
-        if: steps.gradle-build.outcome == 'success'
+        if: success()
         uses: actions/upload-artifact@v7
         with:
           name: github-rock-backend
           path: build/libs/github-rock-backend.jar
           if-no-files-found: error
           retention-days: 14
-      - name: Gradle Cache
-        uses: burrunan/gradle-cache-action@v3
-      - name: Enforce backend Gradle result
-        if: steps.gradle-build.outcome == 'failure'
-        run: exit 1
-
       - name: Check out companion Android main branch
         uses: actions/checkout@v7
         with:
