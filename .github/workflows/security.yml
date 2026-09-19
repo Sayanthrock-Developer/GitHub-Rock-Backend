@@ -25,7 +25,17 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: java-kotlin
-          build-mode: none
+          build-mode: manual
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Prepare CodeQL-compatible Kotlin build
+        run: sed -i 's/2.4.20/2.4.10/g' build.gradle.kts
+      - name: Build for CodeQL
+        run: ./gradlew --no-daemon --console=plain classes testClasses
       - name: Analyze
         uses: github/codeql-action/analyze@v3
 
