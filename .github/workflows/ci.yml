@@ -68,9 +68,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v4
-      - name: Generate Android Gradle wrapper
+      - name: Verify Android Gradle wrapper
         working-directory: android-client
-        run: gradle wrapper --gradle-version 8.14.4
+        run: ./gradlew --version
       - name: Android unit tests
         working-directory: android-client
         run: |
