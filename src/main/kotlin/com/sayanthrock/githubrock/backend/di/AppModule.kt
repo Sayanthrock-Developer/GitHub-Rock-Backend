@@ -1,6 +1,7 @@
 package com.sayanthrock.githubrock.backend.di
 
 import com.sayanthrock.githubrock.backend.config.AppConfig
+import com.sayanthrock.githubrock.backend.security.AuthRateLimiter
 import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
@@ -33,6 +34,7 @@ val appModule = module {
             }
         }
     }
+    single { AuthRateLimiter(get()) }
     single { RefreshTokenReplayGuard(get()) }
     single { WebhookVerifier(get<AppConfig>().githubWebhookSecret) }
     single { WebhookDeliveryRepository(get<HikariDataSource>()) }
