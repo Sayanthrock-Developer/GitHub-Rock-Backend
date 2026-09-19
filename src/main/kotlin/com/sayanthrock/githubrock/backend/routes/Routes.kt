@@ -2,6 +2,7 @@ package com.sayanthrock.githubrock.backend.routes
 
 import com.sayanthrock.githubrock.backend.config.AppConfig
 import com.sayanthrock.githubrock.backend.model.*
+import com.sayanthrock.githubrock.backend.security.AuthRateLimiter
 import com.sayanthrock.githubrock.backend.security.RefreshTokenReplayGuard
 import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
@@ -25,25 +26,6 @@ import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
 import org.koin.ktor.ext.inject
 
-private class AuthRateLimiter(private val windowMillis: Long = 60_000L, private val maxRequests: Int = 12) {
-    private val buckets = mutableMapOf<String, Pair<Long, Int>>()
-    @Synchronized fun allow(key: String, nowMillis: Long = System.currentTimeMillis()): Boolean {
-        val current = buckets[key]
-        if (current == null || nowMillis - current.first >= windowMillis) {
-            buckets[key] = nowMillis to 1
-            if (buckets.size > 10_000) {
-                buckets.entries.removeIf { nowMillis - it.value.first >= windowMillis }
-            }
-            return true
-        }
-        if (current.second >= maxRequests) return false
-        buckets[key] = current.first to current.second + 1
-        return true
-    }
-}
-
-private val authRateLimiter = AuthRateLimiter()
-
 private const val MAX_WEBHOOK_DELIVERY_ID_LENGTH = 256
 private const val MAX_WEBHOOK_EVENT_LENGTH = 100
 private const val MAX_OAUTH_ERROR_LENGTH = 512
@@ -54,6 +36,7 @@ fun Application.configureRoutes() {
     val deviceFlowService by inject<GitHubDeviceFlowService>()
     val webOAuthService by inject<GitHubWebOAuthService>()
     val refreshTokenReplayGuard by inject<RefreshTokenReplayGuard>()
+    val authRateLimiter by inject<AuthRateLimiter>()
     val webhookVerifier by inject<WebhookVerifier>()
     val webhookDeliveries by inject<WebhookDeliveryRepository>()
 
@@ -84,7 +67,7 @@ fun Application.configureRoutes() {
             }
             route("/auth/device") {
                 post("/start") {
-                    if (!authRateLimiter.allow("start:${call.request.local.remoteHost}")) {
+                    if (!authRateLimiter.allow("start", call.request.local.remoteHost)) {
                         call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post
                     }
                     if (!deviceFlowService.isConfigured) {
@@ -94,7 +77,7 @@ fun Application.configureRoutes() {
                     call.respond(deviceFlowService.start())
                 }
                 post("/poll") {
-                    if (!authRateLimiter.allow("poll:${call.request.local.remoteHost}")) {
+                    if (!authRateLimiter.allow("poll", call.request.local.remoteHost)) {
                         call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post
                     }
                     if (!deviceFlowService.isConfigured) {
@@ -108,7 +91,7 @@ fun Application.configureRoutes() {
                     call.respond(deviceFlowService.poll(request.deviceCode))
                 }
                 post("/refresh") {
-                    if (!authRateLimiter.allow("refresh:${call.request.local.remoteHost}")) {
+                    if (!authRateLimiter.allow("refresh", call.request.local.remoteHost)) {
                         call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post
                     }
                     if (!deviceFlowService.isRefreshConfigured) {
@@ -127,7 +110,7 @@ fun Application.configureRoutes() {
             }
             route("/auth/github") {
                 get("/start") {
-                    if (!authRateLimiter.allow("web-start:${call.request.local.remoteHost}")) {
+                    if (!authRateLimiter.allow("web-start", call.request.local.remoteHost)) {
                         call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@get
                     }
                     if (!webOAuthService.isConfigured) {
@@ -164,7 +147,7 @@ fun Application.configureRoutes() {
                     call.respondRedirect("githubrock://oauth/callback?code=${code.encodeURLParameter()}&state=${state.encodeURLParameter()}", permanent = false)
                 }
                 post("/exchange") {
-                    if (!authRateLimiter.allow("web-exchange:${call.request.local.remoteHost}")) {
+                    if (!authRateLimiter.allow("web-exchange", call.request.local.remoteHost)) {
                         call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("rate_limited", "Too many authentication requests")); return@post
                     }
                     if (!webOAuthService.isConfigured) {
