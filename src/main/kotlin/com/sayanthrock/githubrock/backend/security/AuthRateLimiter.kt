@@ -25,7 +25,7 @@ class AuthRateLimiter(
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(key.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
-        val count = commands.eval(
+        val count: Long = commands.eval<Long>(
             script,
             ScriptOutputType.INTEGER,
             arrayOf("github-rock:auth-rate:$bucket:$digest"),
