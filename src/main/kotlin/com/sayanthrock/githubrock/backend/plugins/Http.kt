@@ -37,6 +37,7 @@ fun Application.configureHttp() {
     }
     install(CallId) {
         retrieveFromHeader("X-Request-ID")
+        replyToHeader("X-Request-ID")
         generate { UUID.randomUUID().toString() }
         verify { value -> value.length in 16..128 }
     }
