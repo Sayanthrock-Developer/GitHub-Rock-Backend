@@ -83,7 +83,7 @@ fun Application.configureRoutes() {
                     return@get
                 }
                 runCatching {
-                    githubDataService.search(query, page, perPage, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                    githubDataService.search(query, page, perPage, githubBearerToken(call.request.header(HttpHeaders.Authorization)))
                 }.onSuccess {
                     call.respond(GitHubDataEnvelope(it.data, it.cached))
                 }.onFailure {
@@ -165,7 +165,7 @@ fun Application.configureRoutes() {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_topic", "Invalid topic or platform"))
                     return@get
                 }
-                val query = "topic:" + bucket + if (platform != "all") " " + platform else ""
+                val query = "topic:" + bucket + if (platform != "all") " topic:" + platform else ""
                 runCatching {
                     githubDataService.search(query, 1, 30, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
                 }.onSuccess {
@@ -311,3 +311,5 @@ fun Application.configureRoutes() {
 }
 
 private fun isGitHubName(value: String?): Boolean = value != null && value.length in 1..100 && value.all { it.isLetterOrDigit() || it == '-' || it == '.' || it == '_' }
+
+private fun githubBearerToken(header: String?): String? = header?.trim()?.takeIf { it.regionMatches(0, "Bearer", 0, 6, ignoreCase = true) }?.substring(6)?.trim()?.takeIf { it.isNotBlank() }
