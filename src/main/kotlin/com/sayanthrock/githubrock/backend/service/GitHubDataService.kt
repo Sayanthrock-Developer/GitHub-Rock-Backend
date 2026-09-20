@@ -1,1 +1,86 @@
-package com.sayanthrock.githubrock.backend.service\n\nimport com.sayanthrock.githubrock.backend.config.AppConfig\nimport io.ktor.client.HttpClient\nimport io.ktor.client.request.bearerAuth\nimport io.ktor.client.request.get\nimport io.ktor.client.request.header\nimport io.ktor.client.statement.bodyAsText\nimport io.ktor.http.HttpHeaders\nimport io.ktor.http.isSuccess\nimport io.lettuce.core.RedisClient\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.withContext\nimport kotlinx.serialization.json.Json\nimport kotlinx.serialization.json.JsonElement\nimport java.security.MessageDigest\n\nclass GitHubDataService(\n    private val config: AppConfig,\n    private val httpClient: HttpClient,\n    private val redisClient: RedisClient,\n) {\n    private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }\n    private val baseUrl = "https://api.github.com"\n\n    suspend fun search(query: String, page: Int, perPage: Int, token: String?): GitHubDataResult {\n        val path = "/search/repositories?q=" + query.encodeUrl() + "&page=" + page + "&per_page=" + perPage\n        return getJson(path, token, 120)\n    }\n\n    suspend fun repo(owner: String, name: String, token: String?): GitHubDataResult =\n        getJson("/repos/" + owner.safePath() + "/" + name.safePath(), token, 300)\n\n    suspend fun user(username: String, token: String?): GitHubDataResult =\n        getJson("/users/" + username.safePath(), token, 300)\n\n    suspend fun readme(owner: String, name: String, token: String?): GitHubReadmeResult {\n        val cacheKey = cacheKey("readme", owner, name)\n        if (token == null) readCache(cacheKey)?.let { return GitHubReadmeResult(it, true) }\n        val response = httpClient.get(baseUrl + "/repos/" + owner.safePath() + "/" + name.safePath() + "/readme") {\n            header(HttpHeaders.Accept, "application/vnd.github.raw+json")\n            header("X-GitHub-Api-Version", "2022-11-28")\n            if (!token.isNullOrBlank()) bearerAuth(token)\n        }\n        val body = response.bodyAsText()\n        if (!response.status.isSuccess()) throw GitHubDataException(response.status.value, body.take(512))\n        if (token == null && body.isNotBlank()) writeCache(cacheKey, body, 300)\n        return GitHubReadmeResult(body, false)\n    }\n\n    private suspend fun getJson(path: String, token: String?, ttl: Long): GitHubDataResult {\n        val cacheKey = cacheKey("json", path)\n        if (token == null) readCache(cacheKey)?.let { return GitHubDataResult(json.parseToJsonElement(it), true) }\n        val response = httpClient.get(baseUrl + path) {\n            header(HttpHeaders.Accept, "application/vnd.github+json")\n            header("X-GitHub-Api-Version", "2022-11-28")\n            if (!token.isNullOrBlank()) bearerAuth(token)\n        }\n        val body = response.bodyAsText()\n        if (!response.status.isSuccess()) throw GitHubDataException(response.status.value, body.take(512))\n        val parsed = json.parseToJsonElement(body)\n        if (token == null) writeCache(cacheKey, body, ttl)\n        return GitHubDataResult(parsed, false)\n    }\n\n    private suspend fun readCache(key: String): String? = withContext(Dispatchers.IO) {\n        runCatching { redisClient.connect().use { it.sync().get(key) } }.getOrNull()\n    }\n\n    private suspend fun writeCache(key: String, value: String, ttl: Long) = withContext(Dispatchers.IO) {\n        runCatching { redisClient.connect().use { it.sync().setex(key, ttl, value) } }\n    }\n\n    private fun cacheKey(prefix: String, vararg parts: String): String {\n        val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())\n            .joinToString("") { "%02x".format(it) }\n        return "github-rock:" + prefix + ":" + digest\n    }\n\n    private fun String.safePath(): String = encodeUrl().replace("/", "%2F")\n    private fun String.encodeUrl(): String = java.net.URLEncoder.encode(this, Charsets.UTF_8).replace("+", "%20")\n}\n\ndata class GitHubDataResult(val data: JsonElement, val cached: Boolean)\ndata class GitHubReadmeResult(val content: String, val cached: Boolean)\nclass GitHubDataException(val status: Int, message: String) : RuntimeException(message)
+package com.sayanthrock.githubrock.backend.service
+
+import com.sayanthrock.githubrock.backend.config.AppConfig
+import io.ktor.client.HttpClient
+import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
+import io.ktor.http.isSuccess
+import io.lettuce.core.RedisClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import java.security.MessageDigest
+
+class GitHubDataService(
+    private val config: AppConfig,
+    private val httpClient: HttpClient,
+    private val redisClient: RedisClient,
+) {
+    private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+    private val baseUrl = "https://api.github.com"
+
+    suspend fun search(query: String, page: Int, perPage: Int, token: String?): GitHubDataResult {
+        val path = "/search/repositories?q=" + query.encodeUrl() + "&page=" + page + "&per_page=" + perPage
+        return getJson(path, token, 120)
+    }
+
+    suspend fun repo(owner: String, name: String, token: String?): GitHubDataResult =
+        getJson("/repos/" + owner.safePath() + "/" + name.safePath(), token, 300)
+
+    suspend fun user(username: String, token: String?): GitHubDataResult =
+        getJson("/users/" + username.safePath(), token, 300)
+
+    suspend fun readme(owner: String, name: String, token: String?): GitHubReadmeResult {
+        val cacheKey = cacheKey("readme", owner, name)
+        if (token == null) readCache(cacheKey)?.let { return GitHubReadmeResult(it, true) }
+        val response = httpClient.get(baseUrl + "/repos/" + owner.safePath() + "/" + name.safePath() + "/readme") {
+            header(HttpHeaders.Accept, "application/vnd.github.raw+json")
+            header("X-GitHub-Api-Version", "2022-11-28")
+            if (!token.isNullOrBlank()) bearerAuth(token)
+        }
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) throw GitHubDataException(response.status.value, body.take(512))
+        if (token == null && body.isNotBlank()) writeCache(cacheKey, body, 300)
+        return GitHubReadmeResult(body, false)
+    }
+
+    private suspend fun getJson(path: String, token: String?, ttl: Long): GitHubDataResult {
+        val cacheKey = cacheKey("json", path)
+        if (token == null) readCache(cacheKey)?.let { return GitHubDataResult(json.parseToJsonElement(it), true) }
+        val response = httpClient.get(baseUrl + path) {
+            header(HttpHeaders.Accept, "application/vnd.github+json")
+            header("X-GitHub-Api-Version", "2022-11-28")
+            if (!token.isNullOrBlank()) bearerAuth(token)
+        }
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) throw GitHubDataException(response.status.value, body.take(512))
+        val parsed = json.parseToJsonElement(body)
+        if (token == null) writeCache(cacheKey, body, ttl)
+        return GitHubDataResult(parsed, false)
+    }
+
+    private suspend fun readCache(key: String): String? = withContext(Dispatchers.IO) {
+        runCatching { redisClient.connect().use { it.sync().get(key) } }.getOrNull()
+    }
+
+    private suspend fun writeCache(key: String, value: String, ttl: Long) = withContext(Dispatchers.IO) {
+        runCatching { redisClient.connect().use { it.sync().setex(key, ttl, value) } }
+    }
+
+    private fun cacheKey(prefix: String, vararg parts: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        return "github-rock:" + prefix + ":" + digest
+    }
+
+    private fun String.safePath(): String = encodeUrl().replace("/", "%2F")
+    private fun String.encodeUrl(): String = java.net.URLEncoder.encode(this, Charsets.UTF_8).replace("+", "%20")
+}
+
+data class GitHubDataResult(val data: JsonElement, val cached: Boolean)
+data class GitHubReadmeResult(val content: String, val cached: Boolean)
+class GitHubDataException(val status: Int, message: String) : RuntimeException(message)
