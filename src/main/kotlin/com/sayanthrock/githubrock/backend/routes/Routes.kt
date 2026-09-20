@@ -8,8 +8,11 @@ import com.sayanthrock.githubrock.backend.security.WebhookVerifier
 import com.sayanthrock.githubrock.backend.service.GitHubDeviceFlowService
 import com.sayanthrock.githubrock.backend.service.GitHubWebOAuthService
 import com.sayanthrock.githubrock.backend.service.HealthService
+import com.sayanthrock.githubrock.backend.service.GitHubDataException
+import com.sayanthrock.githubrock.backend.service.GitHubDataService
 import com.sayanthrock.githubrock.backend.storage.WebhookDeliveryRepository
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpHeaders
 import io.ktor.http.encodeURLParameter
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
@@ -22,6 +25,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.request.header
 import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
 import org.koin.ktor.ext.inject
@@ -33,6 +37,7 @@ private const val MAX_OAUTH_ERROR_LENGTH = 512
 fun Application.configureRoutes() {
     val config by inject<AppConfig>()
     val healthService by inject<HealthService>()
+    val githubDataService by inject<GitHubDataService>()
     val deviceFlowService by inject<GitHubDeviceFlowService>()
     val webOAuthService by inject<GitHubWebOAuthService>()
     val refreshTokenReplayGuard by inject<RefreshTokenReplayGuard>()
@@ -58,13 +63,119 @@ fun Application.configureRoutes() {
                             "oauthRefreshProxy" to deviceFlowService.isRefreshConfigured,
                             "oauthWeb" to webOAuthService.isConfigured,
                             "webhooks" to config.githubWebhookSecret.isNotBlank(),
-                            "repositoryCache" to false,
+                            "repositoryCache" to true,
+                            "githubSearch" to true,
+                            "repositoryData" to true,
+                            "readmeProxy" to true,
+                            "userData" to true,
                             "buildMonitoring" to false,
                             "settingsSync" to false,
                         ),
                     ),
                 )
             }
+            get("/search") {
+                val query = call.request.queryParameters["q"]?.trim()
+                val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+                val perPage = call.request.queryParameters["per_page"]?.toIntOrNull() ?: 30
+                if (query.isNullOrBlank() || query.length > 256 || page !in 1..100 || perPage !in 1..100) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_search", "q is required; page must be 1..100 and per_page must be 1..100"))
+                    return@get
+                }
+                runCatching {
+                    githubDataService.search(query, page, perPage, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubDataEnvelope(it.data, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(
+                        HttpStatusCode.fromValue(error?.status ?: 502),
+                        ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"),
+                    )
+                }
+            }
+            get("/search/explore") {
+                val query = call.request.queryParameters["q"]?.trim()
+                val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+                val perPage = call.request.queryParameters["per_page"]?.toIntOrNull() ?: 30
+                if (query.isNullOrBlank() || query.length > 256 || page !in 1..100 || perPage !in 1..100) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_search", "q is required; page must be 1..100 and per_page must be 1..100"))
+                    return@get
+                }
+                runCatching {
+                    githubDataService.search(query, page, perPage, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubDataEnvelope(it.data, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(HttpStatusCode.fromValue(error?.status ?: 502), ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"))
+                }
+            }
+            get("/repo/{owner}/{name}") {
+                val owner = call.parameters["owner"]?.trim()
+                val name = call.parameters["name"]?.trim()
+                if (!isGitHubName(owner) || !isGitHubName(name)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_repository", "Invalid GitHub repository owner or name"))
+                    return@get
+                }
+                runCatching {
+                    githubDataService.repo(owner!!, name!!, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubDataEnvelope(it.data, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(HttpStatusCode.fromValue(error?.status ?: 502), ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"))
+                }
+            }
+            get("/readme/{owner}/{name}") {
+                val owner = call.parameters["owner"]?.trim()
+                val name = call.parameters["name"]?.trim()
+                if (!isGitHubName(owner) || !isGitHubName(name)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_repository", "Invalid GitHub repository owner or name"))
+                    return@get
+                }
+                runCatching {
+                    githubDataService.readme(owner!!, name!!, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubReadmeResponse(it.content, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(HttpStatusCode.fromValue(error?.status ?: 502), ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"))
+                }
+            }
+            get("/user/{username}") {
+                val username = call.parameters["username"]?.trim()
+                if (!isGitHubName(username)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_user", "Invalid GitHub username"))
+                    return@get
+                }
+                runCatching {
+                    githubDataService.user(username!!, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubDataEnvelope(it.data, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(HttpStatusCode.fromValue(error?.status ?: 502), ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"))
+                }
+            }
+            get("/topics/{bucket}/{platform}") {
+                val bucket = call.parameters["bucket"]?.trim()
+                val platform = call.parameters["platform"]?.trim()
+                if (!isGitHubName(bucket) || !isGitHubName(platform)) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid_topic", "Invalid topic or platform"))
+                    return@get
+                }
+                val query = "topic:" + bucket + if (platform != "all") " " + platform else ""
+                runCatching {
+                    githubDataService.search(query, 1, 30, call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim())
+                }.onSuccess {
+                    call.respond(GitHubDataEnvelope(it.data, it.cached))
+                }.onFailure {
+                    val error = it as? GitHubDataException
+                    call.respond(HttpStatusCode.fromValue(error?.status ?: 502), ErrorResponse("github_request_failed", error?.message ?: "GitHub request failed"))
+                }
+            }
+
             route("/auth/device") {
                 post("/start") {
                     if (!authRateLimiter.allow("start", call.request.local.remoteHost)) {
@@ -198,3 +309,5 @@ fun Application.configureRoutes() {
         }
     }
 }
+
+private fun isGitHubName(value: String?): Boolean = value != null && value.length in 1..100 && value.all { it.isLetterOrDigit() || it == '-' || it == '.' || it == '_' }
