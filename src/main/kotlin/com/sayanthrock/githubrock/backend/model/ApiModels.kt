@@ -25,3 +25,9 @@ data class DevicePollResponse(val state: String, @SerialName("access_token") val
 data class WebOAuthExchangeResponse(val state: String, @SerialName("access_token") val accessToken: String? = null, @SerialName("token_type") val tokenType: String? = null, val scope: String? = null, @SerialName("expires_in") val expiresIn: Long? = null, @SerialName("refresh_token") val refreshToken: String? = null, @SerialName("refresh_token_expires_in") val refreshTokenExpiresIn: Long? = null, val message: String? = null)
 @Serializable
 data class WebhookAcceptedResponse(val accepted: Boolean, val duplicate: Boolean, val deliveryId: String, val event: String)
+
+@Serializable
+data class GitHubDataEnvelope(val data: kotlinx.serialization.json.JsonElement, val cached: Boolean, val source: String = "github")
+
+@Serializable
+data class GitHubReadmeResponse(val content: String, val cached: Boolean, val source: String = "github")
