@@ -53,6 +53,12 @@ Only Caddy exposes public ports in the production Compose stack. PostgreSQL, Red
 | POST | `/v1/auth/device/poll` | Poll GitHub Device Flow |
 | POST | `/v1/auth/device/refresh` | Refresh an expiring GitHub OAuth token |
 | POST | `/v1/github/webhooks` | Verify and accept GitHub webhooks |
+| GET | `/v1/search?q=` | GitHub repository search with optional authenticated quota |
+| GET | `/v1/search/explore?q=&page=` | Paginated GitHub repository search |
+| GET | `/v1/topics/{bucket}/{platform}` | Topic-based repository discovery |
+| GET | `/v1/repo/{owner}/{name}` | GitHub repository data |
+| GET | `/v1/readme/{owner}/{name}` | Cached repository README proxy |
+| GET | `/v1/user/{username}` | GitHub user data |
 
 Full request/response details are in [`docs/API.md`](docs/API.md).
 
@@ -101,6 +107,20 @@ curl -X POST http://localhost/v1/auth/device/refresh \
 ```
 
 The refresh token is exchanged through GitHub using the server-only client secret. The backend does not persist the token.
+
+### Repository data
+
+Public GitHub data is cached in Redis to reduce GitHub API traffic. Authenticated requests may send `Authorization: Bearer <github-token>`; authenticated responses are never written to the shared public cache so private repository visibility is not mixed between users.
+
+```bash
+curl "http://localhost/v1/search?q=jetpack%20compose&per_page=20"
+curl "http://localhost/v1/repo/Sayanthrock-Developer/GitHub-Rock"
+curl "http://localhost/v1/readme/Sayanthrock-Developer/GitHub-Rock"
+curl "http://localhost/v1/user/Sayanthrock-Developer"
+curl "http://localhost/v1/topics/android/all"
+```
+
+`/v1/search` and `/v1/search/explore` use real GitHub Search API data; they do not return local mock records. The Android app can therefore use the backend as a cache/fallback layer while retaining direct GitHub access when the backend is unavailable.
 
 ### GitHub webhook endpoint
 
