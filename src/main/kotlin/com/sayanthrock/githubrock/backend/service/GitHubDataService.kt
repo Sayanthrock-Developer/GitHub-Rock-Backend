@@ -22,6 +22,7 @@ class GitHubDataService(
 ) {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val baseUrl = "https://api.github.com"
+    private val maxReadmeBytes = 1_048_576
 
     suspend fun search(query: String, page: Int, perPage: Int, token: String?): GitHubDataResult {
         val path = "/search/repositories?q=" + query.encodeUrl() + "&page=" + page + "&per_page=" + perPage
@@ -44,6 +45,9 @@ class GitHubDataService(
         }
         val body = response.bodyAsText()
         if (!response.status.isSuccess()) throw GitHubDataException(response.status.value, body.take(512))
+        if (body.toByteArray(Charsets.UTF_8).size > maxReadmeBytes) {
+            throw GitHubDataException(413, "README exceeds the 1 MiB size limit")
+        }
         if (token == null && body.isNotBlank()) writeCache(cacheKey, body, 300)
         return GitHubReadmeResult(body, false)
     }
