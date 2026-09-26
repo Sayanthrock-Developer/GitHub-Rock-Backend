@@ -244,9 +244,13 @@ fun Application.configureRoutes() {
                         val safeError = error.take(MAX_OAUTH_ERROR_LENGTH)
                         val description = (call.request.queryParameters["error_description"] ?: "GitHub authorization was not completed.")
                             .take(MAX_OAUTH_ERROR_LENGTH)
+                        // Preserve the OAuth state on error/cancellation so the Android client
+                        // can validate the callback before displaying the user's cancellation.
+                        val safeState = state?.takeIf { it.length in 32..256 }
+                        val stateParameter = safeState?.let { "&state=${it.encodeURLParameter()}" }.orEmpty()
                         call.response.header("Cache-Control", "no-store")
                         call.respondRedirect(
-                            "githubrock://oauth/callback?error=${safeError.encodeURLParameter()}&error_description=${description.encodeURLParameter()}",
+                            "githubrock://oauth/callback?error=${safeError.encodeURLParameter()}&error_description=${description.encodeURLParameter()}$stateParameter",
                             permanent = false,
                         )
                         return@get
