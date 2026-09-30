@@ -1,4 +1,4 @@
-FROM gradle:9.6-jdk21 AS build
+FROM gradle:9.8-jdk21 AS build
 WORKDIR /workspace
 COPY . .
 RUN chmod +x gradlew && ./gradlew --no-daemon clean buildFatJar
